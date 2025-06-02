@@ -2,12 +2,12 @@ name: Docker Multiarch CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
     paths-ignore: 
       - 'README.md' # 忽略README.md修改触发
       - '.dockerignore' # 忽略.dockerignore修改触发
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
     paths-ignore:
       - 'README.md' # 忽略README.md修改触发
       - '.dockerignore' # 忽略.dockerignore修改触发
