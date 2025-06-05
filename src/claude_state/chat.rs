@@ -35,8 +35,12 @@ impl ClaudeState {
     ) -> Option<axum::response::Response> {
         let key = p.get_hash();
         if let Some(stream) = CACHE.pop(key).await {
-            info!("[CACHE] found response for key: {}", key);
-            return Some(self.transform_response(stream).await);
+            info!("Found response for key: {}", key);
+            let Ok(res) = self.transform_response(stream).await else {
+                error!("Failed to transform response for key: {}", key);
+                return None;
+            };
+            return Some(res);
         }
         for id in 0..CLEWDR_CONFIG.load().cache_response {
             let mut state = self.to_owned();
@@ -89,7 +93,7 @@ impl ClaudeState {
             // check if request is successful
             let web_res = async { state.bootstrap().await.and(state.send_chat(p).await) };
             let transform_res =
-                web_res.and_then(async |r| Ok(self.transform_response(r.bytes_stream()).await));
+                web_res.and_then(async |r| self.transform_response(r.bytes_stream()).await);
 
             match transform_res.await {
                 Ok(b) => {

@@ -1,5 +1,5 @@
-# v0.9.19
+# v0.9.20
 
-## Features
+## Fixes
 
-- Add support for Gemini chain of thoughts.
+- Fix Claude non-streaming mode empty response issue.

@@ -101,7 +101,7 @@ impl ClewdrCache {
                 debug!("Adding response to cache for key {}, id {}", key, id);
                 value.push(vec);
             }
-            info!("[CACHE] cached response for key: {}, id {}", key, id);
+            info!("Cached response for key: {}, id {}", key, id);
         });
     }
 

@@ -72,8 +72,12 @@ pub enum ClewdrError {
     TooManyRetries,
     #[snafu(display("EventSource error: {}", source))]
     #[snafu(context(false))]
-    EventSourceError {
+    EventSourceAxumError {
         source: eventsource_stream::EventStreamError<axum::Error>,
+    },
+    #[snafu(context(false))]
+    EventSourceRquestError {
+        source: eventsource_stream::EventStreamError<rquest::Error>,
     },
     #[snafu(display("Zip error: {}", source))]
     #[snafu(context(false))]

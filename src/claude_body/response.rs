@@ -2,11 +2,12 @@ use axum::{Json, body::Body, response::IntoResponse};
 use bytes::Bytes;
 use eventsource_stream::{EventStream, Eventsource};
 use futures::{Stream, TryStreamExt};
-use itertools::Itertools;
 use serde::Deserialize;
+use serde_json::json;
 
 use crate::{
-    claude_state::ClaudeState,
+    claude_state::{ClaudeApiFormat, ClaudeState},
+    error::ClewdrError,
     services::cache::CACHE,
     types::claude_message::{ContentBlock, Message, Role},
     utils::print_out_text,
@@ -22,22 +23,21 @@ use crate::{
 /// Combined completion text from all events
 pub async fn merge_sse(
     stream: EventStream<impl Stream<Item = Result<Bytes, rquest::Error>>>,
-) -> String {
+) -> Result<String, ClewdrError> {
     #[derive(Deserialize)]
     struct Data {
         completion: String,
     }
-    stream
-        .try_collect::<Vec<_>>()
-        .await
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|event| {
-            let data = event.data;
-            let data = serde_json::from_str::<Data>(&data).ok()?;
-            Some(data.completion)
-        })
-        .join("")
+    Ok(stream
+        .try_filter_map(
+            async |event| match serde_json::from_str::<Data>(&event.data) {
+                Ok(Data { completion }) => Ok(Some(completion)),
+                Err(_) => Ok(None),
+            },
+        )
+        .try_collect::<Vec<String>>()
+        .await?
+        .join(""))
 }
 
 impl<S> From<S> for Message
@@ -74,23 +74,46 @@ impl ClaudeState {
     pub async fn transform_response(
         &self,
         input: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
-    ) -> axum::response::Response {
+    ) -> Result<axum::response::Response, ClewdrError> {
         // response is used for caching
         if let Some((key, id)) = self.key {
             CACHE.push(input, key, id);
             // return whatever, not used
-            return Body::empty().into_response();
+            return Ok(Body::empty().into_response());
         }
         // response is used for returning
         // not streaming
         if !self.stream {
             let stream = input.eventsource();
-            let text = merge_sse(stream).await;
+            let text = merge_sse(stream).await?;
             print_out_text(&text, "non_stream.txt");
-            return Json(Message::from(text)).into_response();
+            match self.api_format {
+                // Claude API format
+                ClaudeApiFormat::Claude => {
+                    return Ok(Json(Message::from(text)).into_response());
+                }
+                // OpenAI API format
+                ClaudeApiFormat::OpenAI => {
+                    let json = json!({
+                        "id": "chatcmpl-12345",
+                        "object": "chat.completion",
+                        "created": 1234567890,
+                        "model": "claude",
+                        "choices": [{
+                            "index": 0,
+                            "message": {
+                                "role": "assistant",
+                                "content": text
+                            },
+                            "finish_reason": null
+                        }],
+                    });
+                    return Ok(Json(json).into_response());
+                }
+            }
         }
 
         // stream the response
-        Body::from_stream(input).into_response()
+        Ok(Body::from_stream(input).into_response())
     }
 }
