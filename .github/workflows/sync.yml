@@ -21,7 +21,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Step 2: 设置 sparse-checkout 排除 .github 目录和 Dockerfile
+      # Step 2: 配置 git 用户信息
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Step 3: 设置 sparse-checkout 排除 .github 目录和 Dockerfile
       - name: Configure git to exclude .github directory and Dockerfile
         run: |
           git config core.sparseCheckout true
@@ -30,7 +36,7 @@ jobs:
           echo "!Dockerfile" >> .git/info/sparse-checkout
           echo "Configured sparse-checkout to exclude .github directory and Dockerfile"
 
-      # Step 3: 添加上游仓库并同步（手动实现以确保排除指定文件）
+      # Step 4: 添加上游仓库并同步（手动实现以确保排除指定文件）
       - name: Manual sync excluding .github and Dockerfile
         run: |
           # 添加上游仓库
@@ -54,7 +60,7 @@ jobs:
             echo "No changes to sync"
           fi
 
-      # Step 4: 清理
+      # Step 5: 清理
       - name: Cleanup
         if: always()
         run: |
