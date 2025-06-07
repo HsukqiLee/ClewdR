@@ -29,12 +29,11 @@ pub async fn merge_sse(
         completion: String,
     }
     Ok(stream
-        .try_filter_map(
-            async |event| match serde_json::from_str::<Data>(&event.data) {
-                Ok(Data { completion }) => Ok(Some(completion)),
-                Err(_) => Ok(None),
-            },
-        )
+        .try_filter_map(async |event| {
+            Ok(serde_json::from_str::<Data>(&event.data)
+                .map(|data| data.completion)
+                .ok())
+        })
         .try_collect::<Vec<String>>()
         .await?
         .join(""))
