@@ -282,7 +282,7 @@ fn generate_padding(length: usize) -> String {
         let slice_len = rng.random_range(16..64);
         let slice_start = rng.random_range(0..tokens.len() - slice_len);
         let slice = &tokens[slice_start..slice_start + slice_len];
-        result.push_str(slice.join("").as_str());
+        result.push_str(&slice.concat());
         pushed += slice_len;
         result.push('\n');
         if rng.random_range(0..100) < 5 {

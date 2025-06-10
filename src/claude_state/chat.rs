@@ -159,7 +159,7 @@ impl ClaudeState {
         );
         let body = json!({
             "uuid": new_uuid,
-            "name": format!("ClewdR-{}", new_uuid),
+            "name": format!("ClewdR-{}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")),
         });
 
         self.build_request(Method::POST, endpoint)
