@@ -31,10 +31,6 @@ pub async fn api_post_cookie(
     if !CLEWDR_CONFIG.load().admin_auth(&t) {
         return StatusCode::UNAUTHORIZED;
     }
-    if !c.cookie.validate() {
-        warn!("Invalid cookie: {}", c.cookie);
-        return StatusCode::BAD_REQUEST;
-    }
     c.reset_time = None;
     info!("Cookie accepted: {}", c.cookie);
     match s.submit(c).await {
@@ -151,17 +147,6 @@ pub async fn api_delete_cookie(
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({
                 "error": "Unauthorized"
-            })),
-        ));
-    }
-
-    // Convert string to CookieStatus
-    if !c.cookie.validate() {
-        warn!("Invalid cookie: {}", c.cookie);
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "error": "Invalid cookie"
             })),
         ));
     }

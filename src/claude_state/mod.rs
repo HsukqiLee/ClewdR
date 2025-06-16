@@ -115,7 +115,7 @@ impl ClaudeState {
         self.cookie = Some(res.to_owned());
         let mut client = ClientBuilder::new()
             .cookie_store(true)
-            .emulation(Emulation::Chrome135);
+            .emulation(Emulation::Chrome136);
         if let Some(ref proxy) = self.proxy {
             client = client.proxy(proxy.to_owned());
         }

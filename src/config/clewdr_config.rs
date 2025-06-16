@@ -29,7 +29,7 @@ use crate::{
     utils::enabled,
 };
 
-use super::{ARG_COOKIE_FILE, CONFIG_PATH, ClewdrCookie, ENDPOINT_URL, key::KeyStatus};
+use super::{ARG_COOKIE_FILE, CONFIG_PATH, ENDPOINT_URL, key::KeyStatus};
 
 /// Generates a random password for authentication
 /// Creates a secure 64-character password with mixed character types
@@ -296,18 +296,9 @@ impl ClewdrConfig {
             // load cookies from file
             if f.exists() {
                 if let Ok(cookies) = std::fs::read_to_string(f) {
-                    let cookies =
-                        cookies
-                            .lines()
-                            .map(|line| line.into())
-                            .filter_map(|c: ClewdrCookie| {
-                                if c.validate() {
-                                    Some(CookieStatus::new(c.to_string().as_str(), None))
-                                } else {
-                                    warn!("Invalid cookie format: {}", c);
-                                    None
-                                }
-                            });
+                    let cookies = cookies
+                        .lines()
+                        .filter_map(|line| CookieStatus::new(line, None).ok());
                     config.cookie_array.extend(cookies);
                 } else {
                     error!("Failed to read cookie file: {}", f.display());

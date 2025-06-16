@@ -23,6 +23,12 @@ use crate::{
 #[snafu(visibility(pub(crate)))]
 #[strum(serialize_all = "snake_case")]
 pub enum ClewdrError {
+    #[snafu(display("Parse cookie error: {}, at: {}", msg, loc))]
+    ParseCookieError {
+        #[snafu(implicit)]
+        loc: Location,
+        msg: &'static str,
+    },
     #[snafu(display("Invalid URI: {}", uri))]
     InvalidUri {
         uri: String,
@@ -148,6 +154,9 @@ pub enum ClewdrError {
 impl IntoResponse for ClewdrError {
     fn into_response(self) -> axum::response::Response {
         let (status, msg) = match self {
+            ClewdrError::ParseCookieError { .. } => {
+                (StatusCode::BAD_REQUEST, json!(self.to_string()))
+            }
             ClewdrError::InvalidUri { .. } => (StatusCode::BAD_REQUEST, json!(self.to_string())),
             ClewdrError::YuOAuth2Error { .. } => {
                 (StatusCode::UNAUTHORIZED, json!(self.to_string()))

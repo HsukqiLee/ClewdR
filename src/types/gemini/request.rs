@@ -10,6 +10,7 @@ pub enum Role {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash)]
+#[serde(rename_all = "camelCase")]
 pub struct InlineData {
     mime_type: String,
     data: String,

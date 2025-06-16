@@ -1,21 +1,40 @@
 use regex;
 use serde::{Deserialize, Serialize};
+use snafu::{GenerateImplicitData, Location};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
     ops::Deref,
+    str::FromStr,
     sync::LazyLock,
 };
-use tracing::{info, warn};
+use tracing::info;
 
-use crate::config::PLACEHOLDER_COOKIE;
+use crate::{config::PLACEHOLDER_COOKIE, error::ClewdrError};
 
 /// A struct representing a cookie
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[serde(from = "String")]
-#[serde(into = "String")]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ClewdrCookie {
     inner: String,
+}
+
+impl Serialize for ClewdrCookie {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for ClewdrCookie {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        ClewdrCookie::from_str(&s).map_err(serde::de::Error::custom)
+    }
 }
 
 /// A struct representing a cookie with its information
@@ -61,11 +80,9 @@ impl CookieStatus {
     ///
     /// # Returns
     /// A new CookieStatus instance
-    pub fn new(cookie: &str, reset_time: Option<i64>) -> Self {
-        Self {
-            cookie: ClewdrCookie::from(cookie),
-            reset_time,
-        }
+    pub fn new(cookie: &str, reset_time: Option<i64>) -> Result<Self, ClewdrError> {
+        let cookie = ClewdrCookie::from_str(cookie)?;
+        Ok(Self { cookie, reset_time })
     }
 
     /// Checks if the cookie's reset time has expired
@@ -104,18 +121,6 @@ impl Default for ClewdrCookie {
 }
 
 impl ClewdrCookie {
-    /// Checks if the cookie has a valid format
-    /// Validates the cookie string against the expected pattern
-    ///
-    /// # Returns
-    /// * `bool` - True if the cookie has a valid format, false otherwise
-    pub fn validate(&self) -> bool {
-        static RE: LazyLock<regex::Regex> =
-            LazyLock::new(|| regex::Regex::new(r"^[0-9A-Za-z_-]{86}-[0-9A-Za-z_-]{6}AA$").unwrap());
-        // Check if the cookie is valid
-        RE.is_match(&self.inner)
-    }
-
     pub fn ellipse(&self) -> String {
         let len = self.inner.len();
         if len > 10 {
@@ -126,37 +131,54 @@ impl ClewdrCookie {
     }
 }
 
-impl<S> From<S> for ClewdrCookie
-where
-    S: AsRef<str>,
-{
-    /// Create a new cookie from a string
-    fn from(original: S) -> Self {
-        // split off first '@' to keep compatibility with clewd
-        let cookie = original
-            .as_ref()
-            .split_once('@')
-            .map_or(original.as_ref(), |(_, c)| c);
-        // only keep '=' '_' '-' and alphanumeric characters
-        let cookie = cookie
+impl FromStr for ClewdrCookie {
+    type Err = ClewdrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        static RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+            regex::Regex::new(r"(?:sk-ant-sid01-)?([0-9A-Za-z_-]{86}-[0-9A-Za-z_-]{6}AA)").unwrap()
+        });
+
+        let cleaned = s
             .chars()
-            .filter(|c| c.is_ascii_alphanumeric() || *c == '=' || *c == '_' || *c == '-')
-            .collect::<String>()
-            .trim_start_matches("sessionKey=")
-            .trim_start_matches("sk-ant-sid01-")
-            .to_string();
-        let cookie = Self { inner: cookie };
-        if !cookie.validate() {
-            warn!("Invalid cookie format: {}", original.as_ref());
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+            .collect::<String>();
+
+        if let Some(captures) = RE.captures(&cleaned) {
+            if let Some(cookie_match) = captures.get(1) {
+                return Ok(Self {
+                    inner: cookie_match.as_str().to_string(),
+                });
+            }
         }
-        cookie
+
+        Err(ClewdrError::ParseCookieError {
+            loc: Location::generate(),
+            msg: "Invalid cookie format",
+        })
     }
 }
 
-impl From<ClewdrCookie> for String {
-    /// Convert the cookie to a string
-    fn from(cookie: ClewdrCookie) -> Self {
-        cookie.to_string()
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sk_cookie_from_str() {
+        let cookie = ClewdrCookie::from_str("sk-ant-sid01----------------------------SET_YOUR_COOKIE_HERE----------------------------------------AAAAAAAA").unwrap();
+        assert_eq!(cookie.inner.len(), 95);
+    }
+
+    #[test]
+    fn test_cookie_from_str() {
+        let cookie = ClewdrCookie::from_str("dif---------------------------SET_YOUR_COOKIE_HERE----------------------------------------AAAAAAAAdif").unwrap();
+        assert_eq!(cookie.inner.len(), 95);
+    }
+
+    #[test]
+    fn test_invalid_cookie() {
+        let result = ClewdrCookie::from_str("invalid-cookie");
+        assert!(result.is_err());
     }
 }
 
