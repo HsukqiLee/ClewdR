@@ -190,6 +190,6 @@ impl Display for ClewdrCookie {
 
 impl Debug for ClewdrCookie {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "sessionKey=sk-ant-sid01-{}", self.inner)
+        Display::fmt(self, f)
     }
 }
