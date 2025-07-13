@@ -28,7 +28,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 ENV RUSTFLAGS="-Awarnings --cfg tokio_unstable"
 COPY --from=frontend-builder /usr/src/app/static ./static
-RUN cargo build --release --bin clewdr --features no_fs
+RUN cargo build --release --bin clewdr
 
 # 使用更小的基础镜像
 FROM debian:bookworm-slim
