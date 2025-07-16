@@ -1,6 +1,7 @@
 use axum::Json;
 use axum_auth::AuthBearer;
-use rquest::StatusCode;
+use serde_json::json;
+use wreq::StatusCode;
 
 use crate::config::{CLEWDR_CONFIG, ClewdrConfig};
 
@@ -24,15 +25,7 @@ pub async fn api_get_config(
         ));
     }
 
-    let config = CLEWDR_CONFIG.load_full();
-    let mut config_json = serde_json::to_value(ClewdrConfig::clone(&config)).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "error": format!("Failed to serialize config: {}", e)
-            })),
-        )
-    })?;
+    let mut config_json = json!(CLEWDR_CONFIG.load().as_ref());
     // remove cookie_array and wasted_cookie
     if let Some(obj) = config_json.as_object_mut() {
         obj.remove("cookie_array");

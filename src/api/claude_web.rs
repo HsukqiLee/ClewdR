@@ -1,6 +1,5 @@
 use axum::{Extension, extract::State, response::Response};
 use colored::Colorize;
-use scopeguard::defer;
 use tracing::info;
 
 use crate::{
@@ -29,6 +28,7 @@ pub async fn api_claude_web(
     print_out_json(&p, "client_req.json");
     state.api_format = f.api_format;
     state.stream = stream;
+    state.usage = f.usage.to_owned();
     let format_display = match f.api_format {
         ClaudeApiFormat::Claude => f.api_format.to_string().green(),
         ClaudeApiFormat::OpenAI => f.api_format.to_string().yellow(),
@@ -42,12 +42,13 @@ pub async fn api_claude_web(
         format_display
     );
     let stopwatch = chrono::Utc::now();
-    defer!(
-        let elapsed = chrono::Utc::now().signed_duration_since(stopwatch);
-        info!(
-            "[FIN] elapsed: {}s",
-            format!("{}", elapsed.num_milliseconds() as f64 / 1000.0).green()
-        );
+    let res = state.try_chat(p).await;
+
+    let elapsed = chrono::Utc::now().signed_duration_since(stopwatch);
+    info!(
+        "[FIN] elapsed: {}s",
+        format!("{}", elapsed.num_milliseconds() as f64 / 1000.0).green()
     );
-    (Extension(f), state.try_chat(p).await)
+
+    (Extension(f), res)
 }

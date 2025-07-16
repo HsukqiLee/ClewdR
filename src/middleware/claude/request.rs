@@ -1,4 +1,8 @@
-use std::{sync::LazyLock, vec};
+use std::{
+    hash::{DefaultHasher, Hash, Hasher},
+    sync::LazyLock,
+    vec,
+};
 
 use axum::{
     Json,
@@ -12,7 +16,9 @@ use crate::{
     claude_web_state::{ClaudeApiFormat, ClaudeWebState},
     config::CLEWDR_CONFIG,
     error::ClewdrError,
-    types::claude_message::{ContentBlock, CreateMessageParams, Message, MessageContent, Role},
+    types::claude_message::{
+        ContentBlock, CreateMessageParams, Message, MessageContent, Role, Usage,
+    },
 };
 
 use super::to_oai;
@@ -46,6 +52,8 @@ pub struct ClaudeWebContext {
     pub api_format: ClaudeApiFormat,
     /// The stop sequence used for the request
     pub stop_sequences: Vec<String>,
+    /// User information about input and output tokens
+    pub usage: Usage,
 }
 
 /// Predefined test message in Claude format for connection testing
@@ -107,10 +115,15 @@ impl FromRequest<ClaudeWebState> for ClaudeWebPreprocess {
         stop.extend_from_slice(body.stop.to_owned().unwrap_or_default().as_slice());
         stop.sort();
         stop.dedup();
+        let input_tokens = body.count_tokens();
         let info = ClaudeWebContext {
             stream,
             api_format: format,
             stop_sequences: stop,
+            usage: Usage {
+                input_tokens,
+                output_tokens: 0, // Placeholder for output token count
+            },
         };
 
         // Try to retrieve from cache before processing
@@ -130,6 +143,10 @@ pub struct ClaudeCodeContext {
     pub stream: bool,
     /// The API format being used (Claude or OpenAI)
     pub api_format: ClaudeApiFormat,
+    /// The hash of the system messages for caching purposes
+    pub system_prompt_hash: Option<u64>,
+    // Usage information for the request
+    pub usage: Usage,
 }
 
 pub struct ClaudeCodePreprocess(pub CreateMessageParams, pub ClaudeCodeContext);
@@ -180,7 +197,7 @@ impl FromRequest<ClaudeCodeState> for ClaudeCodePreprocess {
                         }
                         MessageContent::Blocks { content } => content,
                     })
-                    .filter_map(|b| serde_json::to_value(b).ok())
+                    .map(|b| json!(b))
                     .collect::<Vec<_>>()
                     .into(),
             );
@@ -199,20 +216,41 @@ impl FromRequest<ClaudeCodeState> for ClaudeCodePreprocess {
                     "You are Claude Code, Anthropic's official CLI for Claude.".into()
                 }),
         };
-        let mut system = vec![serde_json::to_value(prelude).unwrap()];
+        let mut system = vec![json!(prelude)];
         match body.system {
             Some(Value::String(text)) => {
                 let text_content = ContentBlock::Text { text };
-                system.push(serde_json::to_value(text_content).unwrap());
+                system.push(json!(text_content));
             }
             Some(Value::Array(a)) => system.extend(a),
             _ => {}
         }
+
+        let cache_systems = system
+            .iter_mut()
+            .filter_map(|s| {
+                // Claude Code does not allow TTLs in system prompts
+                s["cache_control"].as_object_mut()?.remove("ttl");
+                Some(&*s)
+            })
+            .collect::<Vec<_>>();
+        let system_prompt_hash = (!cache_systems.is_empty()).then(|| {
+            let mut hasher = DefaultHasher::new();
+            cache_systems.hash(&mut hasher);
+            hasher.finish()
+        });
+
         body.system = Some(Value::Array(system));
+        let input_tokens = body.count_tokens();
 
         let info = ClaudeCodeContext {
             stream,
             api_format: format,
+            system_prompt_hash,
+            usage: Usage {
+                input_tokens,
+                output_tokens: 0, // Placeholder for output token count
+            },
         };
 
         Ok(Self(body, info))

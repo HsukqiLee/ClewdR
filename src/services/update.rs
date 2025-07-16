@@ -1,6 +1,6 @@
 use colored::Colorize;
 use http::header::USER_AGENT;
-use rquest::Client;
+use wreq::Client;
 use serde::Deserialize;
 use snafu::ResultExt;
 use std::{
@@ -43,8 +43,8 @@ impl ClewdrUpdater {
         let authors = option_env!("CARGO_PKG_AUTHORS").unwrap_or_default();
         let repo_owner = authors.split(':').next().unwrap_or("Xerxes-2");
         let repo_name = env!("CARGO_PKG_NAME");
-        let policy = rquest::redirect::Policy::default();
-        let client = rquest::Client::builder()
+        let policy = wreq::redirect::Policy::default();
+        let client = wreq::Client::builder()
             .redirect(policy)
             .build()
             .context(RquestSnafu {

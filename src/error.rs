@@ -5,7 +5,7 @@ use axum::{
 };
 use chrono::Utc;
 use colored::Colorize;
-use rquest::{Response, StatusCode, header::InvalidHeaderValue};
+use oauth2::{RequestTokenError, StandardErrorResponse, basic::BasicErrorResponseType};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use snafu::Location;
@@ -13,6 +13,7 @@ use std::fmt::Display;
 use strum::IntoStaticStr;
 use tokio::sync::oneshot;
 use tracing::{debug, error};
+use wreq::{Response, StatusCode, header::InvalidHeaderValue};
 
 use crate::{
     config::Reason,
@@ -24,6 +25,16 @@ use crate::{
 #[snafu(visibility(pub(crate)))]
 #[strum(serialize_all = "snake_case")]
 pub enum ClewdrError {
+    #[snafu(display("Error requesting token: {}", source))]
+    #[snafu(context(false))]
+    RequestTokenError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: RequestTokenError<
+            oauth2::HttpClientError<wreq::Error>,
+            StandardErrorResponse<BasicErrorResponseType>,
+        >,
+    },
     #[snafu(display("URL parse error: {}, at: {}", source, loc))]
     UrlError {
         #[snafu(implicit)]
@@ -92,7 +103,7 @@ pub enum ClewdrError {
     },
     #[snafu(context(false))]
     EventSourceRquestError {
-        source: eventsource_stream::EventStreamError<rquest::Error>,
+        source: eventsource_stream::EventStreamError<wreq::Error>,
     },
     #[snafu(display("Zip error: {}", source))]
     #[snafu(context(false))]
@@ -127,7 +138,7 @@ pub enum ClewdrError {
     #[snafu(display("Rquest error: {}, source: {}", msg, source))]
     RquestError {
         msg: &'static str,
-        source: rquest::Error,
+        source: wreq::Error,
     },
     #[snafu(display("UTF-8 error: {}", source))]
     #[snafu(context(false))]
@@ -158,6 +169,12 @@ pub enum ClewdrError {
     TimestampError { timestamp: i64 },
     #[snafu(display("Key/Password Invalid"))]
     InvalidKey,
+    #[snafu(whatever, display("{}: {}", message, source.as_ref().map_or_else(|| "Unknown error".into(), |e| e.to_string())))]
+    Whatever {
+        message: String,
+        #[snafu(source(from(Box<dyn std::error::Error + Send>, Some)))]
+        source: Option<Box<dyn std::error::Error + Send>>,
+    },
 }
 
 impl IntoResponse for ClewdrError {

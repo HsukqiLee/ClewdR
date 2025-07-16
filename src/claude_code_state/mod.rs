@@ -5,16 +5,16 @@ use http::{
     HeaderValue, Method,
     header::{ORIGIN, REFERER},
 };
-use rquest::{ClientBuilder, IntoUrl, RequestBuilder};
-use rquest_util::Emulation;
 use snafu::ResultExt;
 use tracing::error;
+use wreq::{ClientBuilder, IntoUrl, RequestBuilder};
+use wreq_util::Emulation;
 
 use crate::{
     claude_web_state::{ClaudeApiFormat, SUPER_CLIENT},
-    config::{CLAUDE_ENDPOINT, CLEWDR_CONFIG, CookieStatus, Reason},
+    config::{CookieStatus, Reason, CLAUDE_ENDPOINT, CLEWDR_CONFIG},
     error::{ClewdrError, RquestSnafu},
-    services::cookie_manager::CookieEventSender,
+    services::cookie_manager::CookieEventSender, types::claude_message::Usage,
 };
 
 #[derive(Clone)]
@@ -22,11 +22,13 @@ pub struct ClaudeCodeState {
     pub event_sender: CookieEventSender,
     pub cookie: Option<CookieStatus>,
     pub cookie_header_value: HeaderValue,
-    pub proxy: Option<rquest::Proxy>,
+    pub proxy: Option<wreq::Proxy>,
     pub endpoint: url::Url,
-    pub client: rquest::Client,
+    pub client: wreq::Client,
     pub api_format: ClaudeApiFormat,
     pub stream: bool,
+    pub system_prompt_hash: Option<u64>,
+    pub usage: Usage,
 }
 
 impl ClaudeCodeState {
@@ -41,6 +43,8 @@ impl ClaudeCodeState {
             client: SUPER_CLIENT.to_owned(),
             api_format: ClaudeApiFormat::Claude,
             stream: false,
+            system_prompt_hash: None,
+            usage: Usage::default(),
         }
     }
 
@@ -76,8 +80,8 @@ impl ClaudeCodeState {
 
     /// Requests a new cookie from the cookie manager
     /// Updates the internal state with the new cookie and proxy configuration
-    pub async fn request_cookie(&mut self) -> Result<(), ClewdrError> {
-        let res = self.event_sender.request().await?;
+    pub async fn request_cookie(&mut self) -> Result<CookieStatus, ClewdrError> {
+        let res = self.event_sender.request(self.system_prompt_hash).await?;
         self.cookie = Some(res.to_owned());
         self.cookie_header_value = HeaderValue::from_str(res.cookie.to_string().as_str())?;
         let mut client = ClientBuilder::new()
@@ -91,7 +95,7 @@ impl ClaudeCodeState {
         })?;
         // load newest config
         self.proxy = CLEWDR_CONFIG.load().rquest_proxy.to_owned();
-        Ok(())
+        Ok(res)
     }
 
     pub fn check_token(&self) -> TokenStatus {

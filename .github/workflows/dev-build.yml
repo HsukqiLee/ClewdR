@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - master
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "frontend/**"
+      - ".github/workflows/dev-build.yml"
   pull_request:
     branches:
       - master

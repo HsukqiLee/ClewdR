@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{Value, json};
+use tiktoken_rs::o200k_base;
 
 use crate::config::CLEWDR_CONFIG;
 
@@ -62,6 +63,34 @@ pub struct CreateMessageParams {
     /// Number of completions to generate
     #[serde(skip_serializing_if = "Option::is_none")]
     pub n: Option<u32>,
+}
+
+impl CreateMessageParams {
+    pub fn count_tokens(&self) -> u32 {
+        let bpe = o200k_base().expect("Failed to get encoding");
+        let systems = match self.system {
+            Some(Value::String(ref s)) => s.to_string(),
+            Some(Value::Array(ref arr)) => arr.iter().filter_map(|v| v["text"].as_str()).collect(),
+            _ => String::new(),
+        };
+        let messages = self
+            .messages
+            .iter()
+            .map(|msg| match msg.content {
+                MessageContent::Text { ref content } => content.to_string(),
+                MessageContent::Blocks { ref content } => content
+                    .iter()
+                    .map(|block| match block {
+                        ContentBlock::Text { text } => text,
+                        _ => "",
+                    })
+                    .collect::<String>(),
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        bpe.encode_with_special_tokens(&systems).len() as u32
+            + bpe.encode_with_special_tokens(&messages).len() as u32
+    }
 }
 
 impl CreateMessageParams {
@@ -272,7 +301,7 @@ pub struct Metadata {
 }
 
 /// Response from creating a message
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CreateMessageResponse {
     /// Content blocks in the response
     pub content: Vec<ContentBlock>,
@@ -290,7 +319,40 @@ pub struct CreateMessageResponse {
     #[serde(rename = "type")]
     pub type_: String,
     /// Usage statistics
-    pub usage: Usage,
+    pub usage: Option<Usage>,
+}
+
+impl CreateMessageResponse {
+    pub fn count_tokens(&self) -> u32 {
+        let bpe = o200k_base().expect("Failed to get encoding");
+        let content = self
+            .content
+            .iter()
+            .map(|block| match block {
+                ContentBlock::Text { text } => text,
+                ContentBlock::Image { source } => &source.data,
+                _ => "",
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        bpe.encode_with_special_tokens(&content).len() as u32
+    }
+}
+
+impl CreateMessageResponse {
+    /// Create a new response with the given content blocks
+    pub fn text(content: String, model: String, usage: Usage) -> Self {
+        Self {
+            content: vec![ContentBlock::text(content)],
+            id: uuid::Uuid::new_v4().to_string(),
+            model,
+            role: Role::Assistant,
+            stop_reason: None,
+            stop_sequence: None,
+            type_: "message".into(),
+            usage: Some(usage),
+        }
+    }
 }
 
 /// Reason for stopping message generation
@@ -301,10 +363,11 @@ pub enum StopReason {
     MaxTokens,
     StopSequence,
     ToolUse,
+    Refusal,
 }
 
 /// Token usage statistics
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Usage {
     /// Input tokens used
     pub input_tokens: u32,
@@ -415,7 +478,7 @@ pub struct MessageStartContent {
     pub model: String,
     pub stop_reason: Option<StopReason>,
     pub stop_sequence: Option<String>,
-    pub usage: Usage,
+    pub usage: Option<Usage>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

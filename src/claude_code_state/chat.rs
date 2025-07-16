@@ -1,7 +1,7 @@
 use axum::{body::Body, response::IntoResponse};
 use colored::Colorize;
 use snafu::ResultExt;
-use tracing::{debug, error, info};
+use tracing::{Instrument, error, info};
 
 use crate::{
     claude_code_state::{ClaudeCodeState, TokenStatus},
@@ -40,28 +40,24 @@ impl ClaudeCodeState {
             let mut state = self.to_owned();
             let p = p.to_owned();
 
-            state.request_cookie().await?;
-            let retry = async || -> Result<axum::response::Response, ClewdrError> {
+            let cookie = state.request_cookie().await?;
+            let retry = async {
                 match state.check_token() {
                     TokenStatus::None => {
-                        debug!(
-                            "[{}] No token found, requesting new token",
-                            state.cookie.as_ref().unwrap().cookie.ellipse().green()
-                        );
+                        info!("No token found, requesting new token");
                         let org = state.get_organization().await?;
                         let code_res = state.exchange_code(&org).await?;
                         state.exchange_token(code_res).await?;
                         state.return_cookie(None).await;
                     }
                     TokenStatus::Expired => {
-                        debug!(
-                            "[{}] Token expired, refreshing token",
-                            state.cookie.as_ref().unwrap().cookie.ellipse().green()
-                        );
+                        info!("Token expired, refreshing token");
                         state.refresh_token().await?;
                         state.return_cookie(None).await;
                     }
-                    TokenStatus::Valid => {}
+                    TokenStatus::Valid => {
+                        info!("Token is valid, proceeding with request");
+                    }
                 }
                 let Some(access_token) = state.cookie.as_ref().and_then(|c| c.token.to_owned())
                 else {
@@ -72,8 +68,12 @@ impl ClaudeCodeState {
                 state
                     .send_chat(access_token.access_token.to_owned(), p)
                     .await
-            };
-            match retry().await {
+            }
+            .instrument(tracing::info_span!(
+                "claude_code",
+                "cookie" = cookie.cookie.ellipse()
+            ));
+            match retry.await {
                 Ok(res) => {
                     return Ok(res);
                 }

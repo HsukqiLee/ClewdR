@@ -1,5 +1,5 @@
 use colored::Colorize;
-use rquest::Method;
+use wreq::Method;
 use serde_json::Value;
 use snafu::ResultExt;
 use std::fmt::Write;

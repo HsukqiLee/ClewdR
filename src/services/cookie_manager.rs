@@ -1,4 +1,5 @@
 use colored::Colorize;
+use moka::sync::Cache;
 use serde::Serialize;
 use std::collections::{HashSet, VecDeque};
 use tokio::{
@@ -32,7 +33,10 @@ pub enum CookieEvent {
     /// Check for timed out Cookies
     CheckReset,
     /// Request to get a Cookie
-    Request(oneshot::Sender<Result<CookieStatus, ClewdrError>>),
+    Request(
+        Option<u64>,
+        oneshot::Sender<Result<CookieStatus, ClewdrError>>,
+    ),
     /// Get all Cookie status information
     GetStatus(oneshot::Sender<CookieStatusInfo>),
     /// Delete a Cookie
@@ -44,6 +48,7 @@ pub struct CookieManager {
     exhausted: HashSet<CookieStatus>,
     invalid: HashSet<UselessCookie>,
     event_rx: mpsc::UnboundedReceiver<CookieEvent>, // Event receiver for incoming events
+    moka: Cache<u64, CookieStatus>, // Cache for storing cookies by system prompt hash
 }
 
 /// Event sender interface provided for external components to interact with the cookie manager
@@ -55,11 +60,14 @@ pub struct CookieEventSender {
 impl CookieEventSender {
     /// Request a cookie from the cookie manager
     ///
+    /// # Arguments
+    /// * `cache_hash` - Optional system prompt hash for caching purposes
+    ///
     /// # Returns
     /// * `Result<CookieStatus, ClewdrError>` - Cookie if available, error otherwise
-    pub async fn request(&self) -> Result<CookieStatus, ClewdrError> {
+    pub async fn request(&self, cache_hash: Option<u64>) -> Result<CookieStatus, ClewdrError> {
         let (tx, rx) = oneshot::channel();
-        self.sender.send(CookieEvent::Request(tx))?;
+        self.sender.send(CookieEvent::Request(cache_hash, tx))?;
         rx.await?
     }
 
@@ -158,11 +166,17 @@ impl CookieManager {
 
         let sender = CookieEventSender { sender: event_tx };
 
+        let moka = Cache::builder()
+            .max_capacity(1000) //
+            .time_to_idle(std::time::Duration::from_secs(60 * 60)) // 1 hour
+            .build();
+
         let manager = Self {
             valid,
             exhausted: exhaust,
             invalid,
             event_rx,
+            moka,
         };
         // 启动事件处理器
         spawn(manager.run(sender.to_owned()));
@@ -195,8 +209,14 @@ impl CookieManager {
             config.wasted_cookie = self.invalid.to_owned();
             config
         });
-        CLEWDR_CONFIG.load().save().unwrap_or_else(|e| {
-            error!("Failed to save config: {}", e);
+        tokio::spawn(async move {
+            let result = tokio::task::spawn_blocking(|| CLEWDR_CONFIG.load().save()).await;
+
+            match result {
+                Ok(Ok(_)) => info!("Config saved successfully."),
+                Ok(Err(e)) => error!("Failed to save config: {}", e),
+                Err(e) => error!("Save task panicked: {}", e),
+            }
         });
     }
 
@@ -223,16 +243,30 @@ impl CookieManager {
 
     /// Dispatches a cookie for use
     /// Gets a cookie from the valid collection
+    /// If a hash is provided, checks the cache first
     ///
+    /// # Arguments
+    /// * `hash` - Optional hash to check the cache for a cookie
     /// # Returns
     /// * `Result<CookieStatus, ClewdrError>` - A cookie if available, error otherwise
-    fn dispatch(&mut self) -> Result<CookieStatus, ClewdrError> {
+    fn dispatch(&mut self, hash: Option<u64>) -> Result<CookieStatus, ClewdrError> {
         self.reset();
+        if let Some(hash) = hash
+            && let Some(cookie) = self.moka.get(&hash)
+            && let Some(cookie) = self.valid.iter().find(|&c| c == &cookie)
+        {
+            // renew moka cache
+            self.moka.insert(hash, cookie.to_owned());
+            return Ok(cookie.to_owned());
+        }
         let cookie = self
             .valid
             .pop_front()
             .ok_or(ClewdrError::NoCookieAvailable)?;
         self.valid.push_back(cookie.to_owned());
+        if let Some(hash) = hash {
+            self.moka.insert(hash, cookie.to_owned());
+        }
         Ok(cookie)
     }
 
@@ -396,8 +430,8 @@ impl CookieManager {
                 CookieEvent::CheckReset => {
                     self.reset();
                 }
-                CookieEvent::Request(sender) => {
-                    let cookie = self.dispatch();
+                CookieEvent::Request(cache_hash, sender) => {
+                    let cookie = self.dispatch(cache_hash);
                     sender.send(cookie).unwrap_or_else(|_| {
                         error!("Failed to send cookie");
                     });

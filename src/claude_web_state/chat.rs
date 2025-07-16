@@ -1,11 +1,10 @@
 use colored::Colorize;
 use futures::TryFutureExt;
-use rquest::{Method, Response, header::ACCEPT};
-use scopeguard::defer;
 use serde_json::json;
 use snafu::ResultExt;
 use tokio::spawn;
-use tracing::{Instrument, Level, debug, error, info, span, warn};
+use tracing::{Instrument, debug, error, error_span, info, info_span, warn};
+use wreq::{Method, Response, header::ACCEPT};
 
 use crate::{
     config::CLEWDR_CONFIG,
@@ -46,7 +45,7 @@ impl ClaudeWebState {
             let mut state = self.to_owned();
             state.key = Some((key, id));
             let p = p.to_owned();
-            let cache_span = span!(Level::ERROR, "cache");
+            let cache_span = error_span!("cache");
             spawn(async move { state.try_chat(p).instrument(cache_span).await });
         }
         None
@@ -81,19 +80,12 @@ impl ClaudeWebState {
             let mut state = self.to_owned();
             let p = p.to_owned();
 
-            state.request_cookie().await?;
-
-            let defer_clone = state.to_owned();
-            defer! {
-                // ensure the cookie is returned
-                spawn(async move {
-                    defer_clone.return_cookie(None).await;
-                });
-            }
+            let cookie = state.request_cookie().await?;
             // check if request is successful
             let web_res = async { state.bootstrap().await.and(state.send_chat(p).await) };
-            let transform_res =
-                web_res.and_then(async |r| self.transform_response(r.bytes_stream()).await);
+            let transform_res = web_res
+                .and_then(async |r| self.transform_response(r.bytes_stream()).await)
+                .instrument(info_span!("claude_web", "cookie" = cookie.cookie.ellipse()));
 
             match transform_res.await {
                 Ok(b) => {
@@ -107,11 +99,7 @@ impl ClaudeWebState {
                     if let Err(e) = state.clean_chat().await {
                         warn!("Failed to clean chat: {}", e);
                     }
-                    error!(
-                        "[{}] {}",
-                        state.cookie.as_ref().unwrap().cookie.ellipse().green(),
-                        e
-                    );
+                    error!("{e}");
                     // 429 error
                     if let ClewdrError::InvalidCookie { reason } = e {
                         state.return_cookie(Some(reason.to_owned())).await;

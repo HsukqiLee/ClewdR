@@ -2,13 +2,13 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use futures::{StreamExt, stream};
 use itertools::Itertools;
 use rand::{Rng, rng};
-use rquest::{
-    Method,
-    multipart::{Form, Part},
-};
 use serde_json::Value;
 use std::{fmt::Write, mem};
 use tracing::warn;
+use wreq::{
+    Method,
+    multipart::{Form, Part},
+};
 
 use crate::{
     claude_web_body::{Attachment, RequestBody, Tool},
@@ -306,18 +306,16 @@ fn generate_padding(length: usize) -> String {
 /// # Returns
 /// Merged system message as a string
 fn merge_system(sys: Value) -> String {
-    if let Some(str) = sys.as_str() {
-        return str.to_string();
+    match sys {
+        Value::String(s) => s,
+        Value::Array(arr) => arr
+            .iter()
+            .filter_map(|v| v["text"].as_str())
+            .map(|v| v.trim())
+            .collect::<Vec<_>>()
+            .join("\n"),
+        _ => String::new(),
     }
-    let Some(arr) = sys.as_array() else {
-        return String::new();
-    };
-    arr.iter()
-        .filter_map(|v| v["text"].as_str())
-        .map(|v| v.trim())
-        .to_owned()
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 fn extract_image_from_url(url: &str) -> Option<ImageSource> {

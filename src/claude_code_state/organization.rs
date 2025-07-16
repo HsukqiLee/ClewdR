@@ -30,12 +30,9 @@ impl ClaudeCodeState {
         if bootstrap["account"].is_null() {
             return Err(Reason::Null.into());
         }
-        let memberships =
-            bootstrap["account"]["memberships"]
-                .as_array()
-                .ok_or(ClewdrError::UnexpectedNone {
-                    msg: "Failed to get memberships from bootstrap",
-                })?;
+        let memberships = bootstrap["account"]["memberships"]
+            .as_array()
+            .ok_or(Reason::Null)?;
         let boot_acc_info = memberships
             .iter()
             .find(|m| {
@@ -44,9 +41,7 @@ impl ClaudeCodeState {
                     .is_some_and(|c| c.iter().any(|c| c.as_str() == Some("chat")))
             })
             .and_then(|m| m["organization"].as_object())
-            .ok_or(ClewdrError::UnexpectedNone {
-                msg: "Failed to find a valid organization in bootstrap",
-            })?;
+            .ok_or(Reason::Null)?;
         let capabilities = boot_acc_info["capabilities"]
             .as_array()
             .map(|a| {
@@ -80,8 +75,6 @@ impl ClaudeCodeState {
             email.blue(),
             capabilities.join(", ").blue()
         );
-        // Simulate fetching organization data
-        // In a real implementation, this would involve making an API call or database query
         Ok(uuid)
     }
 }

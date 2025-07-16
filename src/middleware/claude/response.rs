@@ -1,4 +1,8 @@
-use axum::response::{IntoResponse, Response, Sse, sse::Event};
+use axum::{
+    Json,
+    body::{self, Body},
+    response::{IntoResponse, Response, Sse, sse::Event},
+};
 use eventsource_stream::Eventsource;
 use futures::{Stream, TryStreamExt};
 use serde::Serialize;
@@ -6,7 +10,7 @@ use serde::Serialize;
 use crate::{
     claude_web_state::ClaudeApiFormat,
     middleware::claude::ClaudeCodeContext,
-    types::claude_message::{ContentBlockDelta, StreamEvent},
+    types::claude_message::{ContentBlockDelta, CreateMessageResponse, StreamEvent},
 };
 
 use super::ClaudeWebContext;
@@ -50,10 +54,69 @@ pub async fn to_oai(resp: Response) -> impl IntoResponse {
         let body = resp.into_body();
         let stream = body.into_data_stream().eventsource();
         let stream = transform_stream(stream);
-        return Sse::new(stream)
+        Sse::new(stream)
             .keep_alive(Default::default())
-            .into_response();
+            .into_response()
     }
+}
+
+pub async fn add_usage_info(resp: Response) -> impl IntoResponse {
+    let (mut usage, stream) = if let Some(f) = resp.extensions().get::<ClaudeWebContext>() {
+        if ClaudeApiFormat::OpenAI == f.api_format || resp.status() != 200 {
+            return resp;
+        }
+        (f.usage.to_owned(), f.stream)
+    } else {
+        let Some(ex) = resp.extensions().get::<ClaudeCodeContext>() else {
+            return resp;
+        };
+        if ClaudeApiFormat::OpenAI == ex.api_format || resp.status() != 200 {
+            return resp;
+        }
+        (ex.usage.to_owned(), ex.stream)
+    };
+    if !stream {
+        let data = body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap_or_default();
+        let Ok(mut response) = serde_json::from_slice::<CreateMessageResponse>(&data) else {
+            return Body::from(data).into_response();
+        };
+        let output_tokens = response.count_tokens();
+        usage.output_tokens = output_tokens;
+        response.usage = Some(usage);
+        return Json(response).into_response();
+    }
+    let stream = resp
+        .into_body()
+        .into_data_stream()
+        .eventsource()
+        .map_ok(move |event| {
+            let new_event = axum::response::sse::Event::default()
+                .event(event.event)
+                .id(event.id);
+            let new_event = if let Some(retry) = event.retry {
+                new_event.retry(retry)
+            } else {
+                new_event
+            };
+            let Ok(parsed) = serde_json::from_str::<StreamEvent>(&event.data) else {
+                return new_event.data(event.data);
+            };
+            match parsed {
+                StreamEvent::MessageStart { mut message } => {
+                    message.usage = Some(usage.to_owned());
+                    new_event
+                        .json_data(StreamEvent::MessageStart { message })
+                        .unwrap()
+                }
+                _ => new_event.data(event.data),
+            }
+        });
+
+    Sse::new(stream)
+        .keep_alive(Default::default())
+        .into_response()
 }
 
 /// Represents the data structure for streaming events in OpenAI API format

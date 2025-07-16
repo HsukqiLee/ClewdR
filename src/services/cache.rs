@@ -67,7 +67,7 @@ impl ClewdrCache {
     /// * `id` - An identifier for logging purposes
     pub fn push(
         &'static self,
-        stream: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+        stream: impl Stream<Item = Result<Bytes, wreq::Error>> + Send + 'static,
         key: u64,
         id: usize,
     ) {
@@ -115,11 +115,11 @@ impl ClewdrCache {
     /// * `key` - The hash key to retrieve the response for
     ///
     /// # Returns
-    /// * `Option<impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static>` - The cached response as a stream, if available
+    /// * `Option<impl Stream<Item = Result<Bytes, wreq::Error>> + Send + 'static>` - The cached response as a stream, if available
     pub async fn pop(
         &self,
         key: u64,
-    ) -> Option<impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static> {
+    ) -> Option<impl Stream<Item = Result<Bytes, wreq::Error>> + Send + 'static> {
         let value = self.moka.get(&key)?;
         let (vec, now_empty) = {
             let mut value = value.lock().await;
@@ -169,7 +169,7 @@ impl CachedResponse {
 
 /// Converts a stream of byte results to a vector of bytes
 ///
-/// This utility function consumes a stream of `Result<Bytes, rquest::Error>`
+/// This utility function consumes a stream of `Result<Bytes, wreq::Error>`
 /// and collects all successful results into a vector of Bytes, filtering out errors.
 ///
 /// # Arguments
@@ -178,7 +178,7 @@ impl CachedResponse {
 /// # Returns
 /// * `Vec<Bytes>` - Vector containing all successful byte chunks from the stream
 async fn stream_to_vec(
-    stream: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+    stream: impl Stream<Item = Result<Bytes, wreq::Error>> + Send + 'static,
 ) -> Result<Vec<Bytes>, ClewdrError> {
     stream.try_collect().await.context(RquestSnafu {
         msg: "Failed to collect stream into vector",
@@ -188,14 +188,14 @@ async fn stream_to_vec(
 /// Converts a vector of bytes to a stream of successful results
 ///
 /// This utility function takes a vector of Bytes and transforms it into
-/// a stream of `Result<Bytes, rquest::Error>` where each item is wrapped in Ok.
+/// a stream of `Result<Bytes, wreq::Error>` where each item is wrapped in Ok.
 ///
 /// # Arguments
 /// * `bytes` - The vector of bytes to convert to a stream
 ///
 /// # Returns
-/// * `impl Stream<Item = Result<Bytes, rquest::Error>>` - Stream of successful byte results
-fn vec_to_stream(bytes: Vec<Bytes>) -> impl Stream<Item = Result<Bytes, rquest::Error>> {
+/// * `impl Stream<Item = Result<Bytes, wreq::Error>>` - Stream of successful byte results
+fn vec_to_stream(bytes: Vec<Bytes>) -> impl Stream<Item = Result<Bytes, wreq::Error>> {
     stream::iter(bytes.into_iter().map(Ok))
 }
 

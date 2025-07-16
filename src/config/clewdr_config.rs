@@ -6,7 +6,6 @@ use figment::{
 };
 use http::uri::Authority;
 use passwords::PasswordGenerator;
-use rquest::{Proxy, Url};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
@@ -18,6 +17,7 @@ use std::{
 };
 use tiktoken_rs::o200k_base;
 use tracing::{error, warn};
+use wreq::{Proxy, Url};
 use yup_oauth2::ServiceAccountKey;
 
 use crate::{
@@ -55,6 +55,7 @@ fn generate_password() -> String {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct VertexConfig {
+    #[serde(default)]
     pub credential: Option<ServiceAccountKey>,
     pub model_id: Option<String>,
 }
@@ -226,7 +227,7 @@ impl Display for ClewdrConfig {
             Web Admin Endpoint: {}\n\
             Web Admin Password: {}\n",
             api_url.to_string().green().underline(),
-            (web_url.to_string() + "code/v1/").green().underline(),
+            (web_url.to_string() + "code/v1").green().underline(),
             (api_url.to_string() + "/vertex").green().underline(),
             (web_url.to_string() + "gemini").green().underline(),
             (web_url.to_string() + "gemini/vertex").green().underline(),

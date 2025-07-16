@@ -9,7 +9,7 @@ use crate::{
     claude_web_state::{ClaudeApiFormat, ClaudeWebState},
     error::ClewdrError,
     services::cache::CACHE,
-    types::claude_message::{ContentBlock, Message, Role},
+    types::claude_message::{ContentBlock, CreateMessageResponse, Message, Role},
     utils::print_out_text,
 };
 
@@ -22,7 +22,7 @@ use crate::{
 /// # Returns
 /// Combined completion text from all events
 pub async fn merge_sse(
-    stream: EventStream<impl Stream<Item = Result<Bytes, rquest::Error>>>,
+    stream: EventStream<impl Stream<Item = Result<Bytes, wreq::Error>>>,
 ) -> Result<String, ClewdrError> {
     #[derive(Deserialize)]
     struct Data {
@@ -71,7 +71,7 @@ impl ClaudeWebState {
     /// * `axum::response::Response` - Transformed response in the requested format
     pub async fn transform_response(
         &self,
-        input: impl Stream<Item = Result<Bytes, rquest::Error>> + Send + 'static,
+        input: impl Stream<Item = Result<Bytes, wreq::Error>> + Send + 'static,
     ) -> Result<axum::response::Response, ClewdrError> {
         // response is used for caching
         if let Some((key, id)) = self.key {
@@ -80,38 +80,39 @@ impl ClaudeWebState {
             return Ok(Body::empty().into_response());
         }
         // response is used for returning
-        // not streaming
-        if !self.stream {
-            let stream = input.eventsource();
-            let text = merge_sse(stream).await?;
-            print_out_text(&text, "non_stream.txt");
-            match self.api_format {
-                // Claude API format
-                ClaudeApiFormat::Claude => {
-                    return Ok(Json(Message::from(text)).into_response());
-                }
-                // OpenAI API format
-                ClaudeApiFormat::OpenAI => {
-                    let json = json!({
-                        "id": "chatcmpl-12345",
-                        "object": "chat.completion",
-                        "created": 1234567890,
-                        "model": "claude",
-                        "choices": [{
-                            "index": 0,
-                            "message": {
-                                "role": "assistant",
-                                "content": text
-                            },
-                            "finish_reason": null
-                        }],
-                    });
-                    return Ok(Json(json).into_response());
-                }
-            }
+        if self.stream {
+            return Ok(Body::from_stream(input).into_response());
         }
 
-        // stream the response
-        Ok(Body::from_stream(input).into_response())
+        let stream = input.eventsource();
+        let text = merge_sse(stream).await?;
+        print_out_text(&text, "non_stream.txt");
+        match self.api_format {
+            // Claude API format
+            ClaudeApiFormat::Claude => Ok(Json(CreateMessageResponse::text(
+                text,
+                Default::default(),
+                self.usage.to_owned(),
+            ))
+            .into_response()),
+            // OpenAI API format
+            ClaudeApiFormat::OpenAI => {
+                let json = json!({
+                    "id": "chatcmpl-12345",
+                    "object": "chat.completion",
+                    "created": 1234567890,
+                    "model": "claude",
+                    "choices": [{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": text
+                        },
+                        "finish_reason": null
+                    }],
+                });
+                Ok(Json(json).into_response())
+            }
+        }
     }
 }

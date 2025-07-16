@@ -1,13 +1,13 @@
 use axum::http::HeaderValue;
-use rquest::{
-    Client, ClientBuilder, IntoUrl, Method, Proxy, RequestBuilder,
-    header::{ORIGIN, REFERER},
-};
-use rquest_util::Emulation;
 use snafu::ResultExt;
 use strum::Display;
 use tracing::{debug, error};
 use url::Url;
+use wreq::{
+    Client, ClientBuilder, IntoUrl, Method, Proxy, RequestBuilder,
+    header::{ORIGIN, REFERER},
+};
+use wreq_util::Emulation;
 
 use std::sync::LazyLock;
 
@@ -15,6 +15,7 @@ use crate::{
     config::{CLAUDE_ENDPOINT, CLEWDR_CONFIG, CookieStatus, Reason},
     error::{ClewdrError, RquestSnafu},
     services::cookie_manager::CookieEventSender,
+    types::claude_message::Usage,
 };
 
 pub mod bootstrap;
@@ -50,6 +51,7 @@ pub struct ClaudeWebState {
     pub stream: bool,
     pub client: Client,
     pub key: Option<(u64, usize)>,
+    pub usage: Usage,
 }
 
 impl ClaudeWebState {
@@ -68,6 +70,7 @@ impl ClaudeWebState {
             stream: false,
             client: SUPER_CLIENT.to_owned(),
             key: None,
+            usage: Usage::default(),
         }
     }
 
@@ -110,8 +113,8 @@ impl ClaudeWebState {
 
     /// Requests a new cookie from the cookie manager
     /// Updates the internal state with the new cookie and proxy configuration
-    pub async fn request_cookie(&mut self) -> Result<(), ClewdrError> {
-        let res = self.event_sender.request().await?;
+    pub async fn request_cookie(&mut self) -> Result<CookieStatus, ClewdrError> {
+        let res = self.event_sender.request(None).await?;
         self.cookie = Some(res.to_owned());
         let mut client = ClientBuilder::new()
             .cookie_store(true)
@@ -126,7 +129,7 @@ impl ClaudeWebState {
         // load newest config
         self.proxy = CLEWDR_CONFIG.load().rquest_proxy.to_owned();
         self.endpoint = CLEWDR_CONFIG.load().endpoint();
-        Ok(())
+        Ok(res)
     }
 
     /// Returns the current cookie to the cookie manager

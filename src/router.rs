@@ -16,7 +16,7 @@ use crate::{
     gemini_state::GeminiState,
     middleware::{
         RequireAdminAuth, RequireBearerAuth, RequireQueryKeyAuth, RequireXApiKeyAuth,
-        claude::{apply_stop_sequences, to_oai},
+        claude::{add_usage_info, apply_stop_sequences, to_oai},
     },
     services::{
         cookie_manager::{CookieEventSender, CookieManager},
@@ -102,6 +102,7 @@ impl RouterBuilder {
                 ServiceBuilder::new()
                     .layer(from_extractor::<RequireXApiKeyAuth>())
                     .layer(CompressionLayer::new())
+                    .layer(map_response(add_usage_info))
                     .layer(map_response(apply_stop_sequences)),
             )
             .with_state(self.claude_web_state.to_owned().with_claude_format());
@@ -116,7 +117,8 @@ impl RouterBuilder {
             .layer(
                 ServiceBuilder::new()
                     .layer(from_extractor::<RequireXApiKeyAuth>())
-                    .layer(CompressionLayer::new()),
+                    .layer(CompressionLayer::new())
+                    .layer(map_response(add_usage_info)),
             )
             .with_state(self.claude_code_state.to_owned());
         self.inner = self.inner.merge(router);

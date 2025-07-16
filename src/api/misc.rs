@@ -1,6 +1,6 @@
 use axum::{Json, extract::State};
 use axum_auth::AuthBearer;
-use rquest::StatusCode;
+use wreq::StatusCode;
 use serde_json::{Value, json};
 use tracing::{error, info, warn};
 
