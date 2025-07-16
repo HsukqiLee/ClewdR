@@ -9,3 +9,7 @@ cookie.txt
 static/
 /clewdr*.toml
 /cline_docs
+
+
+#Ignore vscode AI rules
+.github\copilot-instructions.md
