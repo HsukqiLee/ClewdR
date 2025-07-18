@@ -86,7 +86,7 @@ impl ClaudeWebState {
 
         let stream = input.eventsource();
         let text = merge_sse(stream).await?;
-        print_out_text(&text, "non_stream.txt");
+        print_out_text(text.to_owned(), "non_stream.txt");
         match self.api_format {
             // Claude API format
             ClaudeApiFormat::Claude => Ok(Json(CreateMessageResponse::text(

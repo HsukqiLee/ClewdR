@@ -1,5 +1,6 @@
 use colored::{ColoredString, Colorize};
 use std::{fs, path::PathBuf, str::FromStr};
+use tokio::{io::AsyncWriteExt, spawn};
 use tracing::error;
 
 use crate::{IS_DEV, config::LOG_DIR, error::ClewdrError};
@@ -61,7 +62,7 @@ pub fn print_out_json(json: &impl serde::ser::Serialize, file_name: &str) {
         return;
     }
     let text = serde_json::to_string_pretty(json).unwrap_or_default();
-    print_out_text(&text, file_name);
+    print_out_text(text, file_name);
 }
 
 /// Helper function to print out text to a file in the log directory
@@ -69,25 +70,28 @@ pub fn print_out_json(json: &impl serde::ser::Serialize, file_name: &str) {
 /// # Arguments
 /// * `text` - The text content to write
 /// * `file_name` - The name of the file to write in the log directory
-pub fn print_out_text(text: &str, file_name: &str) {
+pub fn print_out_text(text: String, file_name: &str) {
     #[cfg(feature = "no_fs")]
     {
         return;
     }
     let Ok(log_dir) = PathBuf::from_str(LOG_DIR);
     let file_name = log_dir.join(file_name);
-    let Ok(mut file) = std::fs::File::options()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&file_name)
-    else {
-        error!("Failed to open file: {}", file_name.display());
-        return;
-    };
-    if let Err(e) = std::io::Write::write_all(&mut file, text.as_bytes()) {
-        error!("Failed to write to file: {}\n", e);
-    }
+    spawn(async move {
+        let Ok(mut file) = tokio::fs::File::options()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&file_name)
+            .await
+        else {
+            error!("Failed to open file: {}", file_name.display());
+            return;
+        };
+        if let Err(e) = file.write_all(text.as_bytes()).await {
+            error!("Failed to write to file: {}\n", e);
+        }
+    });
 }
 
 /// Timezone for the API

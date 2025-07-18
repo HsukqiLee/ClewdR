@@ -243,7 +243,7 @@ fn merge_messages(msgs: Vec<Message>, system: String) -> Option<Merged> {
         };
         write!(w, "{line_breaks}{prefix}{text}").ok()?;
     }
-    print_out_text(w.as_str(), "paste.txt");
+    print_out_text(w.to_owned(), "paste.txt");
 
     // prompt polyfill
     let p = CLEWDR_CONFIG.load().custom_prompt.to_owned();
@@ -292,7 +292,7 @@ fn generate_padding(length: usize) -> String {
             break;
         }
     }
-    print_out_text(result.as_str(), "padding.txt");
+    print_out_text(result.to_owned(), "padding.txt");
     result.push_str("\n\n\n\n------------------------------------------------------------\n");
     result
 }

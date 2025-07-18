@@ -139,11 +139,10 @@ impl KeyManager {
             config
         });
         tokio::spawn(async move {
-            let result = tokio::task::spawn_blocking(|| CLEWDR_CONFIG.load().save()).await;
+            let result = CLEWDR_CONFIG.load().save().await;
 
             match result {
-                Ok(Ok(_)) => info!("Config saved successfully."),
-                Ok(Err(e)) => error!("Failed to save config: {}", e),
+                Ok(_) => info!("Configuration saved successfully"),
                 Err(e) => error!("Save task panicked: {}", e),
             }
         });

@@ -16,6 +16,7 @@ use std::{
     sync::Arc,
 };
 use tiktoken_rs::o200k_base;
+use tokio::spawn;
 use tracing::{error, warn};
 use wreq::{Proxy, Url};
 use yup_oauth2::ServiceAccountKey;
@@ -327,8 +328,11 @@ impl ClewdrConfig {
             }
         }
         let config = config.validate();
-        config.save().unwrap_or_else(|e| {
-            error!("Failed to save config: {}", e);
+        let config_clone = config.to_owned();
+        spawn(async move {
+            config_clone.save().await.unwrap_or_else(|e| {
+                error!("Failed to save config: {}", e);
+            });
         });
         config
     }
@@ -386,15 +390,12 @@ impl ClewdrConfig {
     }
 
     /// Save the configuration to a file
-    pub fn save(&self) -> Result<(), ClewdrError> {
+    pub async fn save(&self) -> Result<(), ClewdrError> {
         #[cfg(feature = "no_fs")]
         {
             return Ok(());
         }
-        Ok(std::fs::write(
-            CONFIG_PATH.as_path(),
-            toml::ser::to_string_pretty(self)?,
-        )?)
+        Ok(tokio::fs::write(CONFIG_PATH.as_path(), toml::ser::to_string_pretty(self)?).await?)
     }
 
     /// Validate the configuration

@@ -71,7 +71,7 @@ pub async fn api_post_config(
         }
         new_c
     });
-    if let Err(e) = CLEWDR_CONFIG.load().save() {
+    if let Err(e) = CLEWDR_CONFIG.load().save().await {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
