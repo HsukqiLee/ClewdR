@@ -24,7 +24,7 @@ use crate::{
     middleware::gemini::GeminiContext,
     services::{
         cache::{CACHE, GetHashKey},
-        key_manager::KeyEventSender,
+        key_actor::KeyActorHandle,
     },
     types::gemini::response::{FinishReason, GeminiResponse},
 };
@@ -79,7 +79,7 @@ pub struct GeminiState {
     pub key: Option<KeyStatus>,
     pub stream: bool,
     pub query: GeminiArgs,
-    pub event_sender: KeyEventSender,
+    pub key_handle: KeyActorHandle,
     pub api_format: GeminiApiFormat,
     pub client: Client,
     pub cache_key: Option<(u64, usize)>,
@@ -87,7 +87,7 @@ pub struct GeminiState {
 
 impl GeminiState {
     /// Create a new AppState instance
-    pub fn new(tx: KeyEventSender) -> Self {
+    pub fn new(tx: KeyActorHandle) -> Self {
         GeminiState {
             model: String::new(),
             vertex: false,
@@ -95,7 +95,7 @@ impl GeminiState {
             query: GeminiArgs::default(),
             stream: false,
             key: None,
-            event_sender: tx,
+            key_handle: tx,
             api_format: GeminiApiFormat::Gemini,
             client: DUMMY_CLIENT.to_owned(),
             cache_key: None,
@@ -105,13 +105,13 @@ impl GeminiState {
     pub async fn report_403(&self) -> Result<(), ClewdrError> {
         if let Some(mut key) = self.key.to_owned() {
             key.count_403 += 1;
-            self.event_sender.return_key(key).await?;
+            self.key_handle.return_key(key).await?;
         }
         Ok(())
     }
 
     pub async fn request_key(&mut self) -> Result<(), ClewdrError> {
-        let key = self.event_sender.request().await?;
+        let key = self.key_handle.request().await?;
         self.key = Some(key.to_owned());
         let client = ClientBuilder::new();
         let client = if let Some(proxy) = CLEWDR_CONFIG.load().proxy.to_owned() {

@@ -12,14 +12,15 @@ use wreq_util::Emulation;
 
 use crate::{
     claude_web_state::{ClaudeApiFormat, SUPER_CLIENT},
-    config::{CookieStatus, Reason, CLAUDE_ENDPOINT, CLEWDR_CONFIG},
+    config::{CLAUDE_ENDPOINT, CLEWDR_CONFIG, CookieStatus, Reason},
     error::{ClewdrError, RquestSnafu},
-    services::cookie_manager::CookieEventSender, types::claude_message::Usage,
+    services::cookie_actor::CookieActorHandle,
+    types::claude_message::Usage,
 };
 
 #[derive(Clone)]
 pub struct ClaudeCodeState {
-    pub event_sender: CookieEventSender,
+    pub cookie_actor_handle: CookieActorHandle,
     pub cookie: Option<CookieStatus>,
     pub cookie_header_value: HeaderValue,
     pub proxy: Option<wreq::Proxy>,
@@ -33,9 +34,9 @@ pub struct ClaudeCodeState {
 
 impl ClaudeCodeState {
     /// Create a new ClaudeCodeState instance
-    pub fn new(event_sender: CookieEventSender) -> Self {
+    pub fn new(cookie_actor_handle: CookieActorHandle) -> Self {
         ClaudeCodeState {
-            event_sender,
+            cookie_actor_handle,
             cookie: None,
             cookie_header_value: HeaderValue::from_static(""),
             proxy: CLEWDR_CONFIG.load().rquest_proxy.to_owned(),
@@ -53,7 +54,7 @@ impl ClaudeCodeState {
     pub async fn return_cookie(&self, reason: Option<Reason>) {
         // return the cookie to the cookie manager
         if let Some(ref cookie) = self.cookie {
-            self.event_sender
+            self.cookie_actor_handle
                 .return_cookie(cookie.to_owned(), reason)
                 .await
                 .unwrap_or_else(|e| {
@@ -81,7 +82,10 @@ impl ClaudeCodeState {
     /// Requests a new cookie from the cookie manager
     /// Updates the internal state with the new cookie and proxy configuration
     pub async fn request_cookie(&mut self) -> Result<CookieStatus, ClewdrError> {
-        let res = self.event_sender.request(self.system_prompt_hash).await?;
+        let res = self
+            .cookie_actor_handle
+            .request(self.system_prompt_hash)
+            .await?;
         self.cookie = Some(res.to_owned());
         self.cookie_header_value = HeaderValue::from_str(res.cookie.to_string().as_str())?;
         let mut client = ClientBuilder::new()

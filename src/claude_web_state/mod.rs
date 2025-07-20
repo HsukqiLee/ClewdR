@@ -14,7 +14,7 @@ use std::sync::LazyLock;
 use crate::{
     config::{CLAUDE_ENDPOINT, CLEWDR_CONFIG, CookieStatus, Reason},
     error::{ClewdrError, RquestSnafu},
-    services::cookie_manager::CookieEventSender,
+    services::cookie_actor::CookieActorHandle,
     types::claude_message::Usage,
 };
 
@@ -41,7 +41,7 @@ pub enum ClaudeApiFormat {
 pub struct ClaudeWebState {
     pub cookie: Option<CookieStatus>,
     cookie_header_value: HeaderValue,
-    pub event_sender: CookieEventSender,
+    pub cookie_actor_handle: CookieActorHandle,
     pub org_uuid: Option<String>,
     pub conv_uuid: Option<String>,
     pub capabilities: Vec<String>,
@@ -56,9 +56,9 @@ pub struct ClaudeWebState {
 
 impl ClaudeWebState {
     /// Create a new AppState instance
-    pub fn new(event_sender: CookieEventSender) -> Self {
+    pub fn new(cookie_actor_handle: CookieActorHandle) -> Self {
         ClaudeWebState {
-            event_sender,
+            cookie_actor_handle,
             cookie: None,
             org_uuid: None,
             conv_uuid: None,
@@ -114,7 +114,7 @@ impl ClaudeWebState {
     /// Requests a new cookie from the cookie manager
     /// Updates the internal state with the new cookie and proxy configuration
     pub async fn request_cookie(&mut self) -> Result<CookieStatus, ClewdrError> {
-        let res = self.event_sender.request(None).await?;
+        let res = self.cookie_actor_handle.request(None).await?;
         self.cookie = Some(res.to_owned());
         let mut client = ClientBuilder::new()
             .cookie_store(true)
@@ -137,7 +137,7 @@ impl ClaudeWebState {
     pub async fn return_cookie(&self, reason: Option<Reason>) {
         // return the cookie to the cookie manager
         if let Some(ref cookie) = self.cookie {
-            self.event_sender
+            self.cookie_actor_handle
                 .return_cookie(cookie.to_owned(), reason)
                 .await
                 .unwrap_or_else(|e| {

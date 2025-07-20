@@ -1,6 +1,5 @@
 use colored::Colorize;
 use http::header::USER_AGENT;
-use wreq::Client;
 use serde::Deserialize;
 use snafu::ResultExt;
 use std::{
@@ -9,9 +8,14 @@ use std::{
     io::{BufReader, copy},
 };
 use tracing::info;
+use wreq::Client;
 use zip::ZipArchive;
 
-use crate::{config::CLEWDR_CONFIG, error::{ClewdrError, RquestSnafu}, Args};
+use crate::{
+    Args,
+    config::CLEWDR_CONFIG,
+    error::{ClewdrError, RquestSnafu},
+};
 
 #[derive(Debug, Deserialize)]
 struct GitHubRelease {

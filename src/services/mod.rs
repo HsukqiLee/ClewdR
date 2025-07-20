@@ -1,4 +1,4 @@
 pub mod cache;
-pub mod cookie_manager;
+pub mod cookie_actor;
+pub mod key_actor;
 pub mod update;
-pub mod key_manager;

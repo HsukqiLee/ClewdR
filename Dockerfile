@@ -26,7 +26,7 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 # Build application
 COPY . .
-ENV RUSTFLAGS="-Awarnings --cfg tokio_unstable"
+ENV RUSTFLAGS="-Awarnings"
 COPY --from=frontend-builder /usr/src/app/static ./static
 RUN cargo build --release --bin clewdr
 

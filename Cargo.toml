@@ -76,6 +76,7 @@ snafu = { version = "0.8", features = ["futures", "rust_1_81"] }
 serde_with = { version = "3", features = ["chrono_0_4"] }
 mimalloc = "0.1"
 oauth2 = { version = "5", default-features = false }
+ractor = { version = "0.15" }
 
 
 [features]

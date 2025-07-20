@@ -1,8 +1,8 @@
 use colored::Colorize;
-use wreq::Method;
 use serde_json::Value;
 use snafu::ResultExt;
 use std::fmt::Write;
+use wreq::Method;
 
 use crate::{
     claude_web_state::ClaudeWebState,
