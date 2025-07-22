@@ -306,6 +306,15 @@ impl Actor for CookieActor {
         }
         Ok(())
     }
+
+    async fn post_stop(
+        &self,
+        _myself: ActorRef<Self::Msg>,
+        state: &mut Self::State,
+    ) -> Result<(), ActorProcessingErr> {
+        CookieActor::save(state);
+        Ok(())
+    }
 }
 
 /// Handle for interacting with the CookieActor

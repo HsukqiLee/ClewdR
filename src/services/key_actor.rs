@@ -144,6 +144,15 @@ impl Actor for KeyActor {
         }
         Ok(())
     }
+
+    async fn post_stop(
+        &self,
+        _myself: ActorRef<Self::Msg>,
+        state: &mut Self::State,
+    ) -> Result<(), ActorProcessingErr> {
+        KeyActor::save(state);
+        Ok(())
+    }
 }
 
 /// Handle for interacting with the KeyActor
@@ -165,9 +174,7 @@ impl KeyActorHandle {
         ractor::call!(self.actor_ref, KeyActorMessage::Request).map_err(|e| {
             ClewdrError::RactorError {
                 loc: Location::generate(),
-                msg: format!(
-                    "Failed to communicate with KeyActor for request operation: {e}"
-                ),
+                msg: format!("Failed to communicate with KeyActor for request operation: {e}"),
             }
         })?
     }
@@ -177,9 +184,7 @@ impl KeyActorHandle {
         ractor::cast!(self.actor_ref, KeyActorMessage::Return(key)).map_err(|e| {
             ClewdrError::RactorError {
                 loc: Location::generate(),
-                msg: format!(
-                    "Failed to communicate with KeyActor for return operation: {e}"
-                ),
+                msg: format!("Failed to communicate with KeyActor for return operation: {e}"),
             }
         })
     }
@@ -189,9 +194,7 @@ impl KeyActorHandle {
         ractor::cast!(self.actor_ref, KeyActorMessage::Submit(key)).map_err(|e| {
             ClewdrError::RactorError {
                 loc: Location::generate(),
-                msg: format!(
-                    "Failed to communicate with KeyActor for submit operation: {e}"
-                ),
+                msg: format!("Failed to communicate with KeyActor for submit operation: {e}"),
             }
         })
     }
@@ -201,9 +204,7 @@ impl KeyActorHandle {
         ractor::call!(self.actor_ref, KeyActorMessage::GetStatus).map_err(|e| {
             ClewdrError::RactorError {
                 loc: Location::generate(),
-                msg: format!(
-                    "Failed to communicate with KeyActor for get status operation: {e}"
-                ),
+                msg: format!("Failed to communicate with KeyActor for get status operation: {e}"),
             }
         })
     }
@@ -213,9 +214,7 @@ impl KeyActorHandle {
         ractor::call!(self.actor_ref, KeyActorMessage::Delete, key).map_err(|e| {
             ClewdrError::RactorError {
                 loc: Location::generate(),
-                msg: format!(
-                    "Failed to communicate with KeyActor for delete operation: {e}"
-                ),
+                msg: format!("Failed to communicate with KeyActor for delete operation: {e}"),
             }
         })?
     }
