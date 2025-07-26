@@ -13,9 +13,10 @@ use serde_json::{Value, json};
 
 use crate::{
     claude_code_state::ClaudeCodeState,
-    claude_web_state::{ClaudeApiFormat, ClaudeWebState},
+    claude_web_state::ClaudeWebState,
     config::CLEWDR_CONFIG,
     error::ClewdrError,
+    middleware::claude::{ClaudeApiFormat, ClaudeContext},
     types::claude_message::{
         ContentBlock, CreateMessageParams, Message, MessageContent, Role, Usage,
     },
@@ -37,7 +38,7 @@ use super::to_oai;
 /// - Identifies test messages and handles them appropriately
 /// - Attempts to retrieve responses from cache before processing requests
 /// - Provides format information via the FormatInfo extension
-pub struct ClaudeWebPreprocess(pub CreateMessageParams, pub ClaudeWebContext);
+pub struct ClaudeWebPreprocess(pub CreateMessageParams, pub ClaudeContext);
 
 /// Contains information about the API format and streaming status
 ///
@@ -47,13 +48,13 @@ pub struct ClaudeWebPreprocess(pub CreateMessageParams, pub ClaudeWebContext);
 #[derive(Debug, Clone)]
 pub struct ClaudeWebContext {
     /// Whether the response should be streamed
-    pub stream: bool,
+    pub(super) stream: bool,
     /// The API format being used (Claude or OpenAI)
-    pub api_format: ClaudeApiFormat,
+    pub(super) api_format: ClaudeApiFormat,
     /// The stop sequence used for the request
-    pub stop_sequences: Vec<String>,
+    pub(super) stop_sequences: Vec<String>,
     /// User information about input and output tokens
-    pub usage: Usage,
+    pub(super) usage: Usage,
 }
 
 /// Predefined test message in Claude format for connection testing
@@ -133,23 +134,23 @@ impl FromRequest<ClaudeWebState> for ClaudeWebPreprocess {
             return Err(ClewdrError::CacheFound { res: Box::new(r) });
         }
 
-        Ok(Self(body, info))
+        Ok(Self(body, ClaudeContext::Web(info)))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ClaudeCodeContext {
     /// Whether the response should be streamed
-    pub stream: bool,
+    pub(super) stream: bool,
     /// The API format being used (Claude or OpenAI)
-    pub api_format: ClaudeApiFormat,
+    pub(super) api_format: ClaudeApiFormat,
     /// The hash of the system messages for caching purposes
-    pub system_prompt_hash: Option<u64>,
+    pub(super) system_prompt_hash: Option<u64>,
     // Usage information for the request
-    pub usage: Usage,
+    pub(super) usage: Usage,
 }
 
-pub struct ClaudeCodePreprocess(pub CreateMessageParams, pub ClaudeCodeContext);
+pub struct ClaudeCodePreprocess(pub CreateMessageParams, pub ClaudeContext);
 
 impl FromRequest<ClaudeCodeState> for ClaudeCodePreprocess {
     type Rejection = ClewdrError;
@@ -253,6 +254,6 @@ impl FromRequest<ClaudeCodeState> for ClaudeCodePreprocess {
             },
         };
 
-        Ok(Self(body, info))
+        Ok(Self(body, ClaudeContext::Code(info)))
     }
 }

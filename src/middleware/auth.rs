@@ -23,7 +23,7 @@ where
             .headers
             .get("x-api-key")
             .and_then(|v| v.to_str().ok())
-            .ok_or(ClewdrError::InvalidKey)?;
+            .ok_or(ClewdrError::InvalidAuth)?;
         Ok(Self(key.to_string()))
     }
 }
@@ -41,7 +41,7 @@ where
         let query = GeminiArgs::from_request_parts(parts, &()).await?;
         if !CLEWDR_CONFIG.load().user_auth(&query.key) {
             warn!("Invalid query key: {}", query.key);
-            return Err(ClewdrError::InvalidKey);
+            return Err(ClewdrError::InvalidAuth);
         }
         Ok(Self)
     }
@@ -75,10 +75,10 @@ where
     ) -> Result<Self, Self::Rejection> {
         let AuthBearer(key) = AuthBearer::from_request_parts(parts, &())
             .await
-            .map_err(|_| ClewdrError::InvalidKey)?;
+            .map_err(|_| ClewdrError::InvalidAuth)?;
         if !CLEWDR_CONFIG.load().admin_auth(&key) {
             warn!("Invalid admin key");
-            return Err(ClewdrError::InvalidKey);
+            return Err(ClewdrError::InvalidAuth);
         }
         Ok(Self)
     }
@@ -112,10 +112,10 @@ where
     ) -> Result<Self, Self::Rejection> {
         let AuthBearer(key) = AuthBearer::from_request_parts(parts, &())
             .await
-            .map_err(|_| ClewdrError::InvalidKey)?;
+            .map_err(|_| ClewdrError::InvalidAuth)?;
         if !CLEWDR_CONFIG.load().user_auth(&key) {
             warn!("Invalid Bearer key: {}", key);
-            return Err(ClewdrError::InvalidKey);
+            return Err(ClewdrError::InvalidAuth);
         }
         Ok(Self)
     }
@@ -138,7 +138,7 @@ where
         let XApiKey(key) = XApiKey::from_request_parts(parts, &()).await?;
         if !CLEWDR_CONFIG.load().user_auth(&key) {
             warn!("Invalid x-api-key: {}", key);
-            return Err(ClewdrError::InvalidKey);
+            return Err(ClewdrError::InvalidAuth);
         }
         Ok(Self)
     }

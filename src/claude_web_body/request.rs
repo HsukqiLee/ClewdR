@@ -12,8 +12,9 @@ use wreq::{
 
 use crate::{
     claude_web_body::{Attachment, RequestBody, Tool},
-    claude_web_state::{ClaudeApiFormat, ClaudeWebState},
+    claude_web_state::ClaudeWebState,
     config::CLEWDR_CONFIG,
+    middleware::claude::ClaudeApiFormat,
     types::claude_message::{
         ContentBlock, CreateMessageParams, ImageSource, Message, MessageContent, Role,
     },

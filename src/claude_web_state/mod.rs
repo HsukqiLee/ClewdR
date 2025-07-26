@@ -1,6 +1,5 @@
 use axum::http::HeaderValue;
 use snafu::ResultExt;
-use strum::Display;
 use tracing::{debug, error};
 use url::Url;
 use wreq::{
@@ -14,6 +13,7 @@ use std::sync::LazyLock;
 use crate::{
     config::{CLAUDE_ENDPOINT, CLEWDR_CONFIG, CookieStatus, Reason},
     error::{ClewdrError, RquestSnafu},
+    middleware::claude::ClaudeApiFormat,
     services::cookie_actor::CookieActorHandle,
     types::claude_message::Usage,
 };
@@ -22,19 +22,6 @@ pub mod bootstrap;
 pub mod chat;
 /// Placeholder
 pub static SUPER_CLIENT: LazyLock<Client> = LazyLock::new(Client::new);
-
-/// Represents the format of the API response
-///
-/// This enum defines the available API response formats that Clewdr can use
-/// when communicating with clients. It supports both Claude's native format
-/// and an OpenAI-compatible format for broader compatibility with existing tools.
-#[derive(Display, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ClaudeApiFormat {
-    /// Claude native format
-    Claude,
-    /// OpenAI compatible format
-    OpenAI,
-}
 
 /// State of current connection
 #[derive(Clone)]

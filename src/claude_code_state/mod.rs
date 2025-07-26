@@ -11,9 +11,10 @@ use wreq::{ClientBuilder, IntoUrl, RequestBuilder};
 use wreq_util::Emulation;
 
 use crate::{
-    claude_web_state::{ClaudeApiFormat, SUPER_CLIENT},
+    claude_web_state::SUPER_CLIENT,
     config::{CLAUDE_ENDPOINT, CLEWDR_CONFIG, CookieStatus, Reason},
     error::{ClewdrError, RquestSnafu},
+    middleware::claude::ClaudeApiFormat,
     services::cookie_actor::CookieActorHandle,
     types::claude_message::Usage,
 };

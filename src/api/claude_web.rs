@@ -3,9 +3,9 @@ use colored::Colorize;
 use tracing::info;
 
 use crate::{
-    claude_web_state::{ClaudeApiFormat, ClaudeWebState},
+    claude_web_state::ClaudeWebState,
     error::ClewdrError,
-    middleware::claude::{ClaudeWebContext, ClaudeWebPreprocess},
+    middleware::claude::{ClaudeApiFormat, ClaudeContext, ClaudeWebPreprocess},
     utils::{enabled, print_out_json},
 };
 /// Axum handler for the API messages
@@ -22,16 +22,15 @@ use crate::{
 pub async fn api_claude_web(
     State(mut state): State<ClaudeWebState>,
     ClaudeWebPreprocess(p, f): ClaudeWebPreprocess,
-) -> (Extension<ClaudeWebContext>, Result<Response, ClewdrError>) {
-    // Check if the request is a test message
+) -> (Extension<ClaudeContext>, Result<Response, ClewdrError>) {
     let stream = p.stream.unwrap_or_default();
     print_out_json(&p, "client_req.json");
-    state.api_format = f.api_format;
+    state.api_format = f.api_format();
     state.stream = stream;
-    state.usage = f.usage.to_owned();
-    let format_display = match f.api_format {
-        ClaudeApiFormat::Claude => f.api_format.to_string().green(),
-        ClaudeApiFormat::OpenAI => f.api_format.to_string().yellow(),
+    state.usage = f.usage().to_owned();
+    let format_display = match f.api_format() {
+        ClaudeApiFormat::Claude => ClaudeApiFormat::Claude.to_string().green(),
+        ClaudeApiFormat::OpenAI => ClaudeApiFormat::OpenAI.to_string().yellow(),
     };
     info!(
         "[REQ] stream: {}, msgs: {}, model: {}, think: {}, format: {}",

@@ -3,11 +3,10 @@ use axum::response::{IntoResponse, Response, Sse, sse::Event};
 use eventsource_stream::{Event as SourceEvent, Eventsource};
 use futures::Stream;
 
-use crate::types::claude_message::{
-    ContentBlockDelta, MessageDeltaContent, StopReason, StreamEvent,
+use crate::{
+    middleware::claude::ClaudeContext,
+    types::claude_message::{ContentBlockDelta, MessageDeltaContent, StopReason, StreamEvent},
 };
-
-use super::ClaudeWebContext;
 
 type EventResult<T> = Result<T, eventsource_stream::EventStreamError<axum::Error>>;
 
@@ -87,15 +86,15 @@ fn stop_stream(
 }
 
 pub async fn apply_stop_sequences(resp: Response) -> Response {
-    let Some(f) = resp.extensions().get::<ClaudeWebContext>().cloned() else {
+    let Some(f) = resp.extensions().get::<ClaudeContext>().cloned() else {
         return resp;
     };
-    if !f.stream || resp.status() != 200 || f.stop_sequences.is_empty() {
+    if !f.is_stream() || resp.status() != 200 || f.stop_sequences().is_empty() {
         return resp;
     }
 
     let stream = resp.into_body().into_data_stream().eventsource();
-    let stream = stop_stream(f.stop_sequences.to_owned(), stream);
+    let stream = stop_stream(f.stop_sequences().to_owned(), stream);
     let mut resp = Sse::new(stream)
         .keep_alive(Default::default())
         .into_response();

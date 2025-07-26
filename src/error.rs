@@ -21,6 +21,13 @@ use crate::{config::Reason, types::claude_message::Message};
 #[snafu(visibility(pub(crate)))]
 #[strum(serialize_all = "snake_case")]
 pub enum ClewdrError {
+    #[snafu(display("HTTP error: {}, at: {}", source, loc))]
+    #[snafu(context(false))]
+    HttpError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: http::Error,
+    },
     #[snafu(display("Ractor error: {}", msg))]
     RactorError {
         #[snafu(implicit)]
@@ -159,7 +166,7 @@ pub enum ClewdrError {
     #[snafu(display("Invalid timestamp: {}", timestamp))]
     TimestampError { timestamp: i64 },
     #[snafu(display("Key/Password Invalid"))]
-    InvalidKey,
+    InvalidAuth,
     #[snafu(whatever, display("{}: {}", message, source.as_ref().map_or_else(|| "Unknown error".into(), |e| e.to_string())))]
     Whatever {
         message: String,
@@ -215,7 +222,7 @@ impl IntoResponse for ClewdrError {
             ClewdrError::TooManyRetries => (StatusCode::GATEWAY_TIMEOUT, json!(self.to_string())),
             ClewdrError::InvalidCookie { .. } => (StatusCode::BAD_REQUEST, json!(self.to_string())),
             ClewdrError::PathNotFound { .. } => (StatusCode::NOT_FOUND, json!(self.to_string())),
-            ClewdrError::InvalidKey => (StatusCode::UNAUTHORIZED, json!(self.to_string())),
+            ClewdrError::InvalidAuth => (StatusCode::UNAUTHORIZED, json!(self.to_string())),
             ClewdrError::BadRequest { .. } => (StatusCode::BAD_REQUEST, json!(self.to_string())),
             ClewdrError::InvalidHeaderValue { .. } => {
                 (StatusCode::BAD_REQUEST, json!(self.to_string()))

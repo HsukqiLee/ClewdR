@@ -33,7 +33,7 @@ where
                     .headers
                     .get("x-goog-api-key")
                     .and_then(|v| v.to_str().ok())
-                    .ok_or(ClewdrError::InvalidKey)?;
+                    .ok_or(ClewdrError::InvalidAuth)?;
                 Ok(GeminiArgs {
                     key: key.to_string(),
                     alt: q.alt,
