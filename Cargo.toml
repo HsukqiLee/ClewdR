@@ -1,6 +1,6 @@
 [package]
 name = "clewdr"
-version = "0.10.9"
+version = "0.10.10"
 edition = "2024"
 authors = ["Xerxes-2"]
 

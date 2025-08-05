@@ -61,7 +61,8 @@ impl ClaudeWebState {
             max_tokens_to_sample: value.max_tokens,
             attachments: vec![Attachment::new(merged.paste)],
             files: vec![],
-            model: if self.is_pro() {
+            // TODO: hack for sonnet-4, properly handle models later in middleware
+            model: if self.is_pro() && !value.model.contains("sonnet-4") {
                 Some(value.model)
             } else {
                 None

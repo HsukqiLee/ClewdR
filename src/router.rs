@@ -112,8 +112,7 @@ impl RouterBuilder {
             .layer(
                 ServiceBuilder::new()
                     .layer(from_extractor::<RequireXApiKeyAuth>())
-                    .layer(CompressionLayer::new())
-                    .layer(map_response(add_usage_info)),
+                    .layer(CompressionLayer::new()),
             )
             .with_state(self.claude_code_state.to_owned());
         self.inner = self.inner.merge(router);

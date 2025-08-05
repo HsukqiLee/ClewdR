@@ -1,4 +1,4 @@
-use axum::{body::Body, response::IntoResponse};
+use axum::body::Body;
 use colored::Colorize;
 use snafu::ResultExt;
 use tracing::{Instrument, error, info};
@@ -100,7 +100,7 @@ impl ClaudeCodeState {
         access_token: String,
         p: CreateMessageParams,
     ) -> Result<axum::response::Response, ClewdrError> {
-        let stream = self
+        let api_res = self
             .client
             .post(format!("{}/v1/messages", self.endpoint))
             .bearer_auth(access_token)
@@ -113,9 +113,20 @@ impl ClaudeCodeState {
                 msg: "Failed to send chat message",
             })?
             .check_claude()
-            .await?
-            .bytes_stream();
-        let body = Body::from_stream(stream);
-        Ok(body.into_response())
+            .await?;
+        // TODO: wrap this logic in a function
+        let status = api_res.status();
+        let header = api_res.headers().to_owned();
+        let stream = api_res.bytes_stream();
+        let mut res = http::Response::builder().status(status);
+        {
+            let headers = res.headers_mut().unwrap();
+            for (key, value) in header {
+                if let Some(key) = key {
+                    headers.insert(key, value);
+                }
+            }
+        }
+        Ok(res.body(Body::from_stream(stream))?)
     }
 }
