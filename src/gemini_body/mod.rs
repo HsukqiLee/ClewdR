@@ -1,7 +1,8 @@
-use crate::error::ClewdrError;
 use axum::extract::{FromRequestParts, Query};
 use serde::Deserialize;
 use struct_iterable::Iterable;
+
+use crate::error::ClewdrError;
 
 #[derive(Debug, Clone, Deserialize, Iterable, Default)]
 pub struct GeminiArgs {

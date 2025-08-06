@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use axum::{
     Json,
     extract::rejection::{JsonRejection, PathRejection, QueryRejection},
@@ -9,13 +11,12 @@ use oauth2::{RequestTokenError, StandardErrorResponse, basic::BasicErrorResponse
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use snafu::Location;
-use std::fmt::Display;
 use strum::IntoStaticStr;
 use tokio::sync::oneshot;
 use tracing::{debug, error};
 use wreq::{Response, StatusCode, header::InvalidHeaderValue};
 
-use crate::{config::Reason, types::claude_message::Message};
+use crate::{config::Reason, types::claude::Message};
 
 #[derive(Debug, IntoStaticStr, snafu::Snafu)]
 #[snafu(visibility(pub(crate)))]
@@ -74,8 +75,6 @@ pub enum ClewdrError {
     PathRejection { source: PathRejection },
     #[snafu(transparent)]
     QueryRejection { source: QueryRejection },
-    #[snafu(display("Cache found"))]
-    CacheFound { res: Box<axum::response::Response> },
     #[snafu(display("Test Message"))]
     TestMessage,
     #[snafu(display("FmtError: {}", source))]
@@ -205,7 +204,6 @@ impl IntoResponse for ClewdrError {
             ClewdrError::GeminiHttpError { code, inner } => {
                 return (code, Json(inner)).into_response();
             }
-            ClewdrError::CacheFound { res } => return (StatusCode::OK, *res).into_response(),
             ClewdrError::TestMessage => {
                 return (
                     StatusCode::OK,

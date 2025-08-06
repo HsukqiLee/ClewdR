@@ -15,12 +15,11 @@ use crate::{
     error::ClewdrError,
     gemini_state::{GeminiApiFormat, GeminiState},
     middleware::gemini::{GeminiContext, GeminiOaiPreprocess, GeminiPreprocess},
-    services::cache::GetHashKey,
     utils::enabled,
 };
 
 // Common handler function to process both Gemini and OpenAI format requests
-async fn handle_gemini_request<T: Serialize + GetHashKey + Clone + Send + 'static>(
+async fn handle_gemini_request<T: Serialize + Clone + Send + 'static>(
     mut state: GeminiState,
     body: T,
     ctx: GeminiContext,
@@ -60,7 +59,7 @@ fn keep_alive_stream<T>(
     body: T,
 ) -> impl Stream<Item = Result<Bytes, axum::Error>>
 where
-    T: Serialize + GetHashKey + Clone + Send + 'static,
+    T: Serialize + Clone + Send + 'static,
 {
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(15));
     let time_out = std::time::Duration::from_secs(360);

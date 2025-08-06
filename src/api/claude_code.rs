@@ -1,12 +1,13 @@
+use axum::{Extension, extract::State, response::Response};
+use colored::Colorize;
+use tracing::info;
+
 use crate::{
     claude_code_state::ClaudeCodeState,
     error::ClewdrError,
     middleware::claude::{ClaudeApiFormat, ClaudeCodePreprocess, ClaudeContext},
     utils::{enabled, print_out_json},
 };
-use axum::{Extension, extract::State, response::Response};
-use colored::Colorize;
-use tracing::info;
 
 pub async fn api_claude_code(
     State(mut state): State<ClaudeCodeState>,

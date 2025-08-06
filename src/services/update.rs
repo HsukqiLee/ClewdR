@@ -1,12 +1,13 @@
-use colored::Colorize;
-use http::header::USER_AGENT;
-use serde::Deserialize;
-use snafu::ResultExt;
 use std::{
     env,
     fs::File,
     io::{BufReader, copy},
 };
+
+use colored::Colorize;
+use http::header::USER_AGENT;
+use serde::Deserialize;
+use snafu::ResultExt;
 use tracing::info;
 use wreq::Client;
 use zip::ZipArchive;

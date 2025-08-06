@@ -1,6 +1,3 @@
-use regex;
-use serde::{Deserialize, Serialize};
-use snafu::{GenerateImplicitData, Location};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -8,9 +5,16 @@ use std::{
     str::FromStr,
     sync::LazyLock,
 };
+
+use regex;
+use serde::{Deserialize, Serialize};
+use snafu::{GenerateImplicitData, Location};
 use tracing::info;
 
-use crate::{config::PLACEHOLDER_COOKIE, config::TokenInfo, error::ClewdrError};
+use crate::{
+    config::{PLACEHOLDER_COOKIE, TokenInfo},
+    error::ClewdrError,
+};
 
 /// A struct representing a cookie
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

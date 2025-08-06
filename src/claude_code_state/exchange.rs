@@ -1,5 +1,4 @@
-use std::pin::Pin;
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, pin::Pin, str::FromStr};
 
 use oauth2::{
     AsyncHttpClient, AuthUrl, AuthorizationCode, ClientId, CsrfToken, HttpClientError, HttpRequest,
@@ -9,12 +8,10 @@ use serde_json::Value;
 use snafu::{OptionExt, ResultExt};
 use url::Url;
 
-use crate::config::CookieStatus;
-use crate::error::UnexpectedNoneSnafu;
 use crate::{
     claude_code_state::ClaudeCodeState,
-    config::{CC_REDIRECT_URI, CC_TOKEN_URL, CLEWDR_CONFIG, TokenInfo},
-    error::{CheckClaudeErr, ClewdrError, RquestSnafu, UrlSnafu},
+    config::{CC_REDIRECT_URI, CC_TOKEN_URL, CLEWDR_CONFIG, CookieStatus, TokenInfo},
+    error::{CheckClaudeErr, ClewdrError, RquestSnafu, UnexpectedNoneSnafu, UrlSnafu},
 };
 
 struct OauthClient {

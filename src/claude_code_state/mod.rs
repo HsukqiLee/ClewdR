@@ -16,7 +16,7 @@ use crate::{
     error::{ClewdrError, RquestSnafu},
     middleware::claude::ClaudeApiFormat,
     services::cookie_actor::CookieActorHandle,
-    types::claude_message::Usage,
+    types::claude::Usage,
 };
 
 #[derive(Clone)]

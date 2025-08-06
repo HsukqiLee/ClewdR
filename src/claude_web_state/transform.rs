@@ -1,36 +1,26 @@
+use std::{fmt::Write, mem};
+
 use base64::{Engine, prelude::BASE64_STANDARD};
 use futures::{StreamExt, stream};
 use itertools::Itertools;
 use rand::{Rng, rng};
 use serde_json::Value;
-use std::{fmt::Write, mem};
 use tracing::warn;
-use wreq::{
-    Method,
-    multipart::{Form, Part},
-};
+use wreq::multipart::{Form, Part};
 
 use crate::{
-    claude_web_body::{Attachment, RequestBody, Tool},
     claude_web_state::ClaudeWebState,
     config::CLEWDR_CONFIG,
     middleware::claude::ClaudeApiFormat,
-    types::claude_message::{
-        ContentBlock, CreateMessageParams, ImageSource, Message, MessageContent, Role,
+    types::{
+        claude::{ContentBlock, CreateMessageParams, ImageSource, Message, MessageContent, Role},
+        claude_web::request::*,
     },
     utils::{TIME_ZONE, print_out_text},
 };
 
-/// Merged messages and images
-#[derive(Default, Debug)]
-struct Merged {
-    pub paste: String,
-    pub prompt: String,
-    pub images: Vec<ImageSource>,
-}
-
 impl ClaudeWebState {
-    pub fn transform_request(&self, mut value: CreateMessageParams) -> Option<RequestBody> {
+    pub fn transform_request(&self, mut value: CreateMessageParams) -> Option<WebRequestBody> {
         let (value, merged) = match self.api_format {
             ClaudeApiFormat::Claude => {
                 let system = value.system.take();
@@ -57,7 +47,7 @@ impl ClaudeWebState {
         if CLEWDR_CONFIG.load().web_search {
             tools.push(Tool::web_search());
         }
-        Some(RequestBody {
+        Some(WebRequestBody {
             max_tokens_to_sample: value.max_tokens,
             attachments: vec![Attachment::new(merged.paste)],
             files: vec![],
@@ -112,7 +102,7 @@ impl ClaudeWebState {
                 let endpoint = format!("{}/api/{}/upload", self.endpoint, self.org_uuid.as_ref()?);
                 // send the request into future
                 let res = self
-                    .build_request(Method::POST, endpoint)
+                    .build_request(http::Method::POST, endpoint)
                     .multipart(form)
                     .send()
                     .await
@@ -138,6 +128,14 @@ impl ClaudeWebState {
             .collect::<Vec<_>>()
             .await
     }
+}
+
+/// Merged messages and images
+#[derive(Default, Debug)]
+struct Merged {
+    pub paste: String,
+    pub prompt: String,
+    pub images: Vec<ImageSource>,
 }
 
 /// Merges multiple messages into a single text prompt, handling system instructions

@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::{fmt::Display, ops::Deref, sync::LazyLock};
+
+use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]

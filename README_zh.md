@@ -268,9 +268,6 @@ rproxy = "https://custom-api.com"    # 反向代理端点 (可选)
 
 # 性能调优
 max_retries = 3                      # 最大重试次数
-cache_response = 10                  # 缓存TTL分钟数
-not_hash_system = false              # 在缓存键中包含系统提示
-not_hash_last_n = 2                  # 从缓存键中排除最后N条消息
 
 # Claude特定功能
 preserve_chats = false               # 保留聊天历史
@@ -365,10 +362,6 @@ graph TB
     Gemini --> KeyManager[密钥管理器]
     
     CookieManager --> Cache[Moka缓存]
-    KeyManager --> Cache
-    
-    Cache --> ClaudeAPI[Claude.ai API]
-    Cache --> GeminiAPI[Gemini APIs]
     
     subgraph "服务层"
         CookieManager

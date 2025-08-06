@@ -13,7 +13,7 @@ use serde_json::Value;
 use snafu::ResultExt;
 use strum::Display;
 use tokio::spawn;
-use tracing::{Instrument, Level, error, info, span, warn};
+use tracing::{error, info, warn};
 use wreq::{Client, ClientBuilder, header::AUTHORIZATION};
 use yup_oauth2::{CustomHyperClientBuilder, ServiceAccountAuthenticator, ServiceAccountKey};
 
@@ -22,10 +22,7 @@ use crate::{
     error::{CheckGeminiErr, ClewdrError, InvalidUriSnafu, RquestSnafu},
     gemini_body::GeminiArgs,
     middleware::gemini::GeminiContext,
-    services::{
-        cache::{CACHE, GetHashKey},
-        key_actor::KeyActorHandle,
-    },
+    services::key_actor::KeyActorHandle,
     types::gemini::response::{FinishReason, GeminiResponse},
 };
 
@@ -82,7 +79,6 @@ pub struct GeminiState {
     pub key_handle: KeyActorHandle,
     pub api_format: GeminiApiFormat,
     pub client: Client,
-    pub cache_key: Option<(u64, usize)>,
 }
 
 impl GeminiState {
@@ -98,7 +94,6 @@ impl GeminiState {
             key_handle: tx,
             api_format: GeminiApiFormat::Gemini,
             client: DUMMY_CLIENT.to_owned(),
-            cache_key: None,
         }
     }
 
@@ -246,10 +241,7 @@ impl GeminiState {
         Ok(res)
     }
 
-    pub async fn try_chat(
-        &mut self,
-        p: impl Serialize + GetHashKey + Clone,
-    ) -> Result<Response, ClewdrError> {
+    pub async fn try_chat(&mut self, p: impl Serialize + Clone) -> Result<Response, ClewdrError> {
         let mut err = None;
         for i in 0..CLEWDR_CONFIG.load().max_retries + 1 {
             if i > 0 {
@@ -265,7 +257,7 @@ impl GeminiState {
                         err = Some(ClewdrError::EmptyChoices);
                         continue;
                     };
-                    let res = transform_response(self.cache_key, stream).await;
+                    let res = Body::from_stream(stream).into_response();
                     return Ok(res);
                 }
                 Err(e) => {
@@ -296,25 +288,6 @@ impl GeminiState {
             return Err(e);
         }
         Err(ClewdrError::TooManyRetries)
-    }
-
-    pub async fn try_from_cache(
-        &self,
-        p: &(impl Serialize + GetHashKey + Clone + Send + 'static),
-    ) -> Option<axum::response::Response> {
-        let key = p.get_hash();
-        if let Some(stream) = CACHE.pop(key).await {
-            info!("Found response for key: {}", key);
-            return Some(Body::from_stream(stream).into_response());
-        }
-        for id in 0..CLEWDR_CONFIG.load().cache_response {
-            let mut state = self.to_owned();
-            state.cache_key = Some((key, id));
-            let p = p.to_owned();
-            let cache_span = span!(Level::ERROR, "cache");
-            spawn(async move { state.try_chat(p).instrument(cache_span).await });
-        }
-        None
     }
 
     async fn check_empty_choices(
@@ -350,20 +323,4 @@ impl GeminiState {
         }
         Ok(Either::Right(stream::once(async { Ok(bytes) })))
     }
-}
-
-async fn transform_response(
-    cache_key: Option<(u64, usize)>,
-    input: impl Stream<Item = Result<Bytes, wreq::Error>> + Send + 'static,
-) -> axum::response::Response {
-    // response is used for caching
-    if let Some((key, id)) = cache_key {
-        CACHE.push(input, key, id);
-        // return whatever, not used
-        return Body::empty().into_response();
-    }
-    // response is used for returning
-    // not streaming
-    // stream the response
-    Body::from_stream(input).into_response()
 }

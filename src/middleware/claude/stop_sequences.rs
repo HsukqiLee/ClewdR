@@ -5,7 +5,7 @@ use futures::Stream;
 
 use crate::{
     middleware::claude::ClaudeContext,
-    types::claude_message::{ContentBlockDelta, MessageDeltaContent, StopReason, StreamEvent},
+    types::claude::{ContentBlockDelta, MessageDeltaContent, StopReason, StreamEvent},
 };
 
 type EventResult<T> = Result<T, eventsource_stream::EventStreamError<axum::Error>>;

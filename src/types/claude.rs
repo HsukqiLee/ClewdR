@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 use tiktoken_rs::o200k_base;
-
-use crate::config::CLEWDR_CONFIG;
 
 #[derive(Debug)]
 pub struct RequiredMessageParams {
@@ -15,7 +13,7 @@ fn default_max_tokens() -> u32 {
     8192
 }
 /// Parameters for creating a message
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct CreateMessageParams {
     /// Maximum number of tokens to generate
     #[serde(default = "default_max_tokens")]
@@ -93,36 +91,10 @@ impl CreateMessageParams {
     }
 }
 
-impl CreateMessageParams {
-    fn safety_off(&mut self) {
-        let mut extra_body = json!({});
-        extra_body["google"]["safety_settings"] = json!([
-          { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "OFF" },
-          { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "OFF" },
-          { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "OFF" },
-          { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "OFF" },
-          {
-            "category": "HARM_CATEGORY_CIVIC_INTEGRITY",
-            "threshold": "BLOCK_NONE"
-          }
-        ]);
-        self.extra_body = Some(extra_body);
-    }
-
-    pub fn preprocess_vertex(&mut self) {
-        self.safety_off();
-        self.model = self.model.trim_start_matches("google/").to_string();
-        if let Some(model) = CLEWDR_CONFIG.load().vertex.model_id.to_owned() {
-            self.model = model;
-        }
-        self.model = format!("google/{}", self.model);
-    }
-}
-
 /// Thinking mode in Claude API Request
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Thinking {
-    budget_tokens: u64,
+    pub budget_tokens: Option<u64>,
     r#type: String,
 }
 

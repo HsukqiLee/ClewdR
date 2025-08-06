@@ -1,3 +1,12 @@
+use std::{
+    collections::HashSet,
+    env,
+    fmt::{Debug, Display},
+    net::{IpAddr, SocketAddr},
+    path::PathBuf,
+    sync::Arc,
+};
+
 use axum::http::{Uri, uri::Scheme};
 use colored::Colorize;
 use figment::{
@@ -7,20 +16,13 @@ use figment::{
 use http::uri::Authority;
 use passwords::PasswordGenerator;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashSet,
-    env,
-    fmt::{Debug, Display},
-    net::{IpAddr, SocketAddr},
-    path::PathBuf,
-    sync::Arc,
-};
 use tiktoken_rs::o200k_base;
 use tokio::spawn;
 use tracing::{error, warn};
 use wreq::{Proxy, Url};
 use yup_oauth2::ServiceAccountKey;
 
+use super::{ARG_COOKIE_FILE, CONFIG_PATH, ENDPOINT_URL, key::KeyStatus};
 use crate::{
     config::{
         CC_CLIENT_ID, CookieStatus, UselessCookie, default_check_update, default_ip,
@@ -30,8 +32,6 @@ use crate::{
     error::ClewdrError,
     utils::enabled,
 };
-
-use super::{ARG_COOKIE_FILE, CONFIG_PATH, ENDPOINT_URL, key::KeyStatus};
 
 /// Generates a random password for authentication
 /// Creates a secure 64-character password with mixed character types
@@ -110,14 +110,6 @@ pub struct ClewdrConfig {
     #[serde(default)]
     pub web_search: bool,
 
-    // Cache settings, can hot reload
-    #[serde(default)]
-    pub cache_response: usize,
-    #[serde(default)]
-    pub not_hash_system: bool,
-    #[serde(default)]
-    pub not_hash_last_n: usize,
-
     // Cookie settings, can hot reload
     #[serde(default)]
     pub skip_first_warning: bool,
@@ -185,9 +177,6 @@ impl Default for ClewdrConfig {
             pad_tokens: Arc::new(vec![]),
             preserve_chats: false,
             web_search: false,
-            cache_response: 0,
-            not_hash_system: false,
-            not_hash_last_n: 0,
             skip_first_warning: false,
             skip_second_warning: false,
             skip_restricted: false,
@@ -235,11 +224,6 @@ impl Display for ClewdrConfig {
             self.password.yellow(),
             web_url.to_string().green().underline(),
             self.admin_password.yellow(),
-        )?;
-        writeln!(
-            f,
-            "Response Caching: {}",
-            self.cache_response.to_string().green()
         )?;
         if let Some(ref proxy) = self.proxy {
             writeln!(f, "Proxy: {}", proxy.to_string().blue())?;
@@ -400,14 +384,12 @@ impl ClewdrConfig {
 
     /// Validate the configuration
     pub fn validate(mut self) -> Self {
-        const MAX_CACHE_RESPONSE: usize = 20;
         if self.password.trim().is_empty() {
             self.password = generate_password();
         }
         if self.admin_password.trim().is_empty() {
             self.admin_password = generate_password();
         }
-        self.cache_response = self.cache_response.min(MAX_CACHE_RESPONSE);
         self.cookie_array = self.cookie_array.into_iter().map(|x| x.reset()).collect();
         self.rquest_proxy = self.proxy.to_owned().and_then(|p| {
             Proxy::all(p)

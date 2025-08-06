@@ -128,12 +128,6 @@
         "preserveChats": "Preserve Chats",
         "webSearch": "Web Search"
       },
-      "cache": {
-        "title": "Cache Settings",
-        "cacheResponse": "Cache Size",
-        "notHashSystem": "Do not hash system messages",
-        "notHashLastN": "Do not hash last N messages"
-      },
       "cookie": {
         "title": "Cookie Settings",
         "skipFirstWarning": "Skip First Warning",

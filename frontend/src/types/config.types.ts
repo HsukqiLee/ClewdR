@@ -21,11 +21,6 @@ export interface ConfigData {
   preserve_chats: boolean;
   web_search: boolean;
 
-  // Cache settings
-  cache_response: number;
-  not_hash_last_n: number;
-  not_hash_system: boolean;
-
   // Cookie settings
   skip_first_warning: boolean;
   skip_second_warning: boolean;

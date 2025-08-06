@@ -1,7 +1,8 @@
+use std::fmt::Write;
+
 use colored::Colorize;
 use serde_json::Value;
 use snafu::ResultExt;
-use std::fmt::Write;
 use wreq::Method;
 
 use crate::{

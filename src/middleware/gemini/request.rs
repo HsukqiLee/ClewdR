@@ -8,7 +8,7 @@ use crate::{
     error::ClewdrError,
     gemini_body::GeminiArgs,
     gemini_state::{GeminiApiFormat, GeminiState},
-    types::{claude_message::CreateMessageParams, gemini::request::GeminiRequestBody},
+    types::{gemini::request::GeminiRequestBody, oai::CreateMessageParams},
 };
 
 pub struct GeminiContext {
@@ -58,9 +58,6 @@ impl FromRequest<GeminiState> for GeminiPreprocess {
         body.safety_off();
         let mut state = state.clone();
         state.update_from_ctx(&ctx);
-        if let Some(res) = state.try_from_cache(&body).await {
-            return Err(ClewdrError::CacheFound { res: Box::new(res) });
-        }
         Ok(GeminiPreprocess(body, ctx))
     }
 }
@@ -93,9 +90,6 @@ impl FromRequest<GeminiState> for GeminiOaiPreprocess {
         };
         let mut state = state.clone();
         state.update_from_ctx(&ctx);
-        if let Some(res) = state.try_from_cache(&body).await {
-            return Err(ClewdrError::CacheFound { res: Box::new(res) });
-        }
         Ok(GeminiOaiPreprocess(body, ctx))
     }
 }

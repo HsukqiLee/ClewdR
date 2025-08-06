@@ -2,7 +2,7 @@ use axum::response::sse::Event;
 use futures::{Stream, TryStreamExt};
 use serde::Serialize;
 
-use crate::types::claude_message::{ContentBlockDelta, StreamEvent};
+use crate::types::claude::{ContentBlockDelta, StreamEvent};
 
 /// Represents the data structure for streaming events in OpenAI API format
 /// Contains a choices array with deltas of content

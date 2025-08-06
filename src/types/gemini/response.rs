@@ -1,6 +1,7 @@
-use super::request::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use super::request::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 #[allow(non_camel_case_types)]

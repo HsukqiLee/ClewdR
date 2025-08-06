@@ -1,10 +1,11 @@
-use arc_swap::ArcSwap;
-use clap::Parser;
 use std::{
     net::{IpAddr, Ipv4Addr},
     path::PathBuf,
     sync::LazyLock,
 };
+
+use arc_swap::ArcSwap;
+use clap::Parser;
 use tracing::error;
 use url::Url;
 

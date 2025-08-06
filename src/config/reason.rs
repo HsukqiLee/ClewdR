@@ -1,14 +1,14 @@
-use colored::Colorize;
-use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
 };
+
+use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::config::ClewdrCookie;
-
 use super::CookieStatus;
+use crate::config::ClewdrCookie;
 
 /// Reason why a cookie is considered useless
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Error)]

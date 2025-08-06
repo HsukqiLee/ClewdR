@@ -1,5 +1,6 @@
-use colored::{ColoredString, Colorize};
 use std::{fs, path::PathBuf, str::FromStr};
+
+use colored::{ColoredString, Colorize};
 use tokio::{io::AsyncWriteExt, spawn};
 use tracing::error;
 

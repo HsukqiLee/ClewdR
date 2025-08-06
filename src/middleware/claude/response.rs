@@ -6,12 +6,11 @@ use axum::{
 use eventsource_stream::Eventsource;
 use futures::TryStreamExt;
 
+use super::{ClaudeApiFormat, transform_stream};
 use crate::{
     middleware::claude::ClaudeContext,
-    types::claude_message::{CreateMessageResponse, StreamEvent},
+    types::claude::{CreateMessageResponse, StreamEvent},
 };
-
-use super::{ClaudeApiFormat, transform_stream};
 
 /// Transforms responses to ensure compatibility with the OpenAI API format
 ///
@@ -84,6 +83,15 @@ pub async fn add_usage_info(resp: Response) -> impl IntoResponse {
                     message.usage.get_or_insert(usage.to_owned());
                     new_event
                         .json_data(StreamEvent::MessageStart { message })
+                        .unwrap()
+                }
+                StreamEvent::MessageDelta { delta, usage } => {
+                    let usage = usage.unwrap_or_default();
+                    new_event
+                        .json_data(StreamEvent::MessageDelta {
+                            delta,
+                            usage: Some(usage),
+                        })
                         .unwrap()
                 }
                 _ => new_event.data(event.data),

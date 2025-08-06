@@ -142,7 +142,7 @@ impl GeminiRequestBody {
           { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "OFF" },
           {
             "category": "HARM_CATEGORY_CIVIC_INTEGRITY",
-            "threshold": "BLOCK_NONE"
+            "threshold": "OFF"
           }
         ]));
     }
@@ -157,4 +157,6 @@ pub enum Tool {
     functionDeclarations(Vec<Value>),
     /// Generally it can be `Tool::code_execution(json!({}))`,
     code_execution(Value),
+    #[serde(untagged)]
+    Unknown(Value),
 }

@@ -1,7 +1,8 @@
+use std::collections::{HashSet, VecDeque};
+
 use ractor::{Actor, ActorProcessingErr, ActorRef, RpcReplyPort};
 use serde::Serialize;
 use snafu::{GenerateImplicitData, Location};
-use std::collections::{HashSet, VecDeque};
 use tracing::{error, info};
 
 use crate::{

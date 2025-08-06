@@ -1,9 +1,9 @@
-# v0.10.10
+# v0.10.11
 
-## Fix
+## Feature Updates
 
-- Special handle for Claude Sonnet 4 model
+- Update Claude Opus 4.1
 
-## TODO
+## Removed Features
 
-- Major refactor ongoing. Will be released in v0.11.0.
+- Cache responses, as few users use it and hard to maintain.

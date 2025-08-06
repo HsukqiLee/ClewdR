@@ -1,9 +1,6 @@
-pub mod request;
-pub mod response;
-
 use serde::{Deserialize, Serialize};
 
-use crate::types::claude_message::ImageSource;
+use crate::types::claude::ImageSource;
 
 /// Claude.ai attachment
 #[derive(Deserialize, Serialize, Debug)]
@@ -34,7 +31,7 @@ impl Attachment {
 
 /// Request body to be sent to the Claude.ai
 #[derive(Deserialize, Serialize, Debug)]
-pub struct RequestBody {
+pub struct WebRequestBody {
     pub max_tokens_to_sample: u32,
     pub attachments: Vec<Attachment>,
     pub files: Vec<String>,

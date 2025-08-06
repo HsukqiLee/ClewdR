@@ -128,12 +128,6 @@
         "preserveChats": "保留聊天",
         "webSearch": "网页搜索"
       },
-      "cache": {
-        "title": "缓存设置",
-        "cacheResponse": "缓存响应",
-        "notHashSystem": "不哈希系统消息",
-        "notHashLastN": "不哈希最后N条消息"
-      },
       "cookie": {
         "title": "Cookie设置",
         "skipFirstWarning": "跳过一次警告（小黄）",

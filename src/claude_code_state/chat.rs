@@ -7,7 +7,7 @@ use crate::{
     claude_code_state::{ClaudeCodeState, TokenStatus},
     config::CLEWDR_CONFIG,
     error::{CheckClaudeErr, ClewdrError, RquestSnafu},
-    types::claude_message::CreateMessageParams,
+    types::claude::CreateMessageParams,
 };
 
 impl ClaudeCodeState {

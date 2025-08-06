@@ -9,8 +9,7 @@ use crate::{
     claude_web_state::ClaudeWebState,
     error::ClewdrError,
     middleware::claude::ClaudeApiFormat,
-    services::cache::CACHE,
-    types::claude_message::{ContentBlock, CreateMessageResponse, Message, Role},
+    types::claude::{ContentBlock, CreateMessageResponse, Message, Role},
     utils::print_out_text,
 };
 
@@ -72,20 +71,14 @@ impl ClaudeWebState {
     /// * `axum::response::Response` - Transformed response in the requested format
     pub async fn transform_response(
         &self,
-        input: impl Stream<Item = Result<Bytes, wreq::Error>> + Send + 'static,
+        wreq_res: wreq::Response,
     ) -> Result<axum::response::Response, ClewdrError> {
-        // response is used for caching
-        if let Some((key, id)) = self.key {
-            CACHE.push(input, key, id);
-            // return whatever, not used
-            return Ok(Body::empty().into_response());
-        }
-        // response is used for returning
+        let stream = wreq_res.bytes_stream();
         if self.stream {
-            return Ok(Body::from_stream(input).into_response());
+            return Ok(Body::from_stream(stream).into_response());
         }
 
-        let stream = input.eventsource();
+        let stream = stream.eventsource();
         let text = merge_sse(stream).await?;
         print_out_text(text.to_owned(), "non_stream.txt");
         match self.api_format {

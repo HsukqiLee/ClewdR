@@ -161,35 +161,6 @@ const ConfigForm: React.FC<ConfigFormProps> = ({ config, onChange }) => {
         </div>
       </ConfigSection>
 
-      {/* Cache Settings Section */}
-      <ConfigSection title={t("config.sections.cache.title")}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormInput
-            id="cache_response"
-            name="cache_response"
-            type="number"
-            value={config.cache_response.toString()}
-            onChange={onChange}
-            label={t("config.sections.cache.cacheResponse")}
-          />
-          <FormInput
-            id="not_hash_last_n"
-            name="not_hash_last_n"
-            type="number"
-            value={config.not_hash_last_n.toString()}
-            onChange={onChange}
-            label={t("config.sections.cache.notHashLastN")}
-          />
-        </div>
-
-        <ConfigCheckbox
-          name="not_hash_system"
-          checked={config.not_hash_system}
-          onChange={onChange}
-          label={t("config.sections.cache.notHashSystem")}
-        />
-      </ConfigSection>
-
       {/* Cookie Settings Section */}
       <ConfigSection title={t("config.sections.cookie.title")}>
         <ConfigCheckbox

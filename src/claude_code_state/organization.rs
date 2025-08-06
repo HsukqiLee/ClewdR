@@ -3,13 +3,12 @@ use http::Method;
 use serde_json::Value;
 use snafu::ResultExt;
 
+use super::ClaudeCodeState;
 use crate::{
     config::Reason,
     error::{CheckClaudeErr, ClewdrError, RquestSnafu},
     utils::print_out_json,
 };
-
-use super::ClaudeCodeState;
 
 impl ClaudeCodeState {
     pub async fn get_organization(&self) -> Result<String, ClewdrError> {
